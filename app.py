@@ -273,8 +273,9 @@ def deploy_stream():
             poll_interval = 5
             last_pod_status = ""
             polls_without_change = 0
-            max_monitor_time = 300  # 5 minutes max monitoring
+            max_monitor_time = 900  # 15 minutes max monitoring
             start_time = time.time()
+            timed_out = False
 
             while not result_holder['done'] or polls_without_change < 2:
                 # Send keepalive comment (SSE spec: lines starting with : are comments)
@@ -317,13 +318,18 @@ def deploy_stream():
 
                 # Timeout check
                 if time.time() - start_time > max_monitor_time:
-                    yield f"data: {json.dumps({'type': 'info', 'message': 'Monitoring timeout reached, deployment may still be in progress'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'info', 'message': 'Monitoring timeout reached (15 min). Helm may still be running in background.'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'info', 'message': 'Check status with: kubectl get pods -n nemo'})}\n\n"
+                    timed_out = True
                     break
 
                 time.sleep(poll_interval)
 
-            # Wait for thread to complete
-            cmd_thread.join(timeout=10)
+            # Wait for thread to complete (longer timeout if we didn't timeout on monitoring)
+            if not timed_out:
+                cmd_thread.join(timeout=30)
+            else:
+                cmd_thread.join(timeout=5)  # Brief wait if we already timed out
 
             # Final drain of output
             while not log_queue.empty():
@@ -334,7 +340,12 @@ def deploy_stream():
                     break
 
             # Report final status
-            if result_holder['returncode'] == 0:
+            if timed_out and result_holder['returncode'] is None:
+                # Monitoring timed out but helm is still running - not a failure
+                yield f"data: {json.dumps({'type': 'info', 'message': 'Helm install is running in background. Monitor with:'})}\n\n"
+                yield f"data: {json.dumps({'type': 'command', 'message': 'watch kubectl get pods -n nemo'})}\n\n"
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+            elif result_holder['returncode'] == 0:
                 yield f"data: {json.dumps({'type': 'success', 'message': 'Helm install command completed successfully!'})}\n\n"
 
                 # Final pod status
@@ -355,6 +366,11 @@ def deploy_stream():
                     except Exception as e:
                         yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to get {log_label}: {e}'})}\n\n"
 
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+            elif result_holder['returncode'] is None:
+                # Command still running but not timed out - unusual state
+                yield f"data: {json.dumps({'type': 'info', 'message': 'Deployment status unknown. Check manually:'})}\n\n"
+                yield f"data: {json.dumps({'type': 'command', 'message': 'kubectl get pods -n nemo'})}\n\n"
                 yield f"data: {json.dumps({'type': 'complete'})}\n\n"
             else:
                 error_output = result_holder.get('stdout', 'Unknown error')
