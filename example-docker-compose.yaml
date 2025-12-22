@@ -1,0 +1,18 @@
+# Example docker-compose.yaml that uses NGC API key
+# This file demonstrates how to use the API key passed by the deployment app
+version: '3.8'
+
+services:
+  example-service:
+    image: nvcr.io/nvidia/cuda:12.0.0-base-ubuntu22.04
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+    command: echo "API Key received, deploying with NGC..."
+
+  # Add your actual services here that require the NGC API key
+  # For example:
+  # nemo-service:
+  #   image: nvcr.io/your-private-image:tag
+  #   environment:
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #   ...

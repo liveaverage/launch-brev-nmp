@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brev Console</title>
+    <link rel="icon" href="/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background-color: #181818;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .help-icon {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(118, 185, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 700;
+            color: #76b900;
+            transition: all 0.2s;
+            border: 2px solid #76b900;
+            z-index: 100;
+        }
+
+        .help-icon:hover {
+            background: #76b900;
+            color: #000;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 40px 20px;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .logo {
+            width: 96px;
+            height: 18px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+
+        .form-container {
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 32px;
+            letter-spacing: -0.02em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        input[type="password"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 11px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input[type="password"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #76b900;
+        }
+
+        input[type="password"]::placeholder,
+        input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.6)' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 40px;
+        }
+
+        select option {
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .version-group {
+            display: none;
+        }
+
+        .version-group.show {
+            display: block;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #76b900;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-description {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: -12px;
+            margin-bottom: 20px;
+            margin-left: 28px;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background: #76b900;
+            color: #000000;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button[type="submit"]:hover {
+            background: #659c00;
+        }
+
+        button[type="submit"]:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .message {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: rgba(118, 185, 0, 0.15);
+            border: 1px solid rgba(118, 185, 0, 0.3);
+            color: #76b900;
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .dry-run-output,
+        .stream-output {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            display: none;
+            line-height: 1.5;
+        }
+
+        .dry-run-output.show,
+        .stream-output.show {
+            display: block;
+        }
+
+        .stream-output {
+            background: #0d0d0d;
+            border: 1px solid #333;
+        }
+
+        .stream-line {
+            margin: 2px 0;
+            word-break: break-all;
+        }
+
+        .stream-line.command {
+            color: #76b900;
+            font-weight: 600;
+        }
+
+        .stream-line.section {
+            color: #fff;
+            font-weight: 700;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid #333;
+        }
+
+        .stream-line.error {
+            color: #ef4444;
+        }
+
+        .stream-line.success {
+            color: #76b900;
+            font-weight: 600;
+        }
+
+        .stream-line.info {
+            color: #60a5fa;
+        }
+
+        .stream-line.output {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .stream-line.log {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+
+        .dry-run-section {
+            margin-bottom: 16px;
+        }
+
+        .dry-run-title {
+            color: #76b900;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .dry-run-command {
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 2px solid #76b900;
+            margin-bottom: 6px;
+            word-wrap: break-word;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1e1e1e;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 24px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #76b900;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-section p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-line;
+        }
+
+        .help-section a {
+            color: #76b900;
+            text-decoration: none;
+        }
+
+        .help-section a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <button class="help-icon" id="helpBtn" title="Help">?</button>
+
+    <div class="container">
+        <div class="logo-container">
+            <img src="/assets/nvidia-logo.png" alt="NVIDIA" class="logo" id="logo">
+        </div>
+
+        <div class="form-container">
+            <h1 id="heading">Deploy</h1>
+
+            <form id="deployForm">
+                <div class="form-group">
+                    <label for="apiKey">NGC API Key</label>
+                    <input
+                        type="password"
+                        id="apiKey"
+                        name="apiKey"
+                        placeholder="nvapi-..."
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="form-group version-group" id="versionGroup">
+                    <label for="version">Version</label>
+                    <select id="version" name="version"></select>
+                </div>
+
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="dryRun" name="dryRun">
+                    <label for="dryRun" class="checkbox-label">Dry Run (Test Mode)</label>
+                </div>
+                <div class="checkbox-description">
+                    Preview commands without executing
+                </div>
+
+                <button type="submit" id="submitBtn">
+                    🤙 Let it rip
+                </button>
+            </form>
+
+            <div class="message" id="message"></div>
+            <div class="stream-output" id="streamOutput"></div>
+            <div class="dry-run-output" id="dryRunOutput"></div>
+
+            <div class="footer">
+                Powered by NVIDIA Brev
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="helpTitle">Help</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="helpBody">
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('deployForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const message = document.getElementById('message');
+        const dryRunOutput = document.getElementById('dryRunOutput');
+        const streamOutput = document.getElementById('streamOutput');
+        const versionGroup = document.getElementById('versionGroup');
+        const versionSelect = document.getElementById('version');
+        const helpBtn = document.getElementById('helpBtn');
+        const helpModal = document.getElementById('helpModal');
+        const modalClose = document.getElementById('modalClose');
+        const helpBody = document.getElementById('helpBody');
+        const helpTitle = document.getElementById('helpTitle');
+        const logo = document.getElementById('logo');
+
+        let config = {};
+        let activeEventSource = null;
+
+        // Handle logo loading error
+        logo.onerror = function() {
+            console.warn('Logo failed to load, hiding');
+            this.style.display = 'none';
+        };
+
+        // Load configuration
+        async function loadConfig() {
+            try {
+                const response = await fetch('/config');
+                config = await response.json();
+
+                // Set heading from config
+                if (config.heading) {
+                    document.getElementById('heading').textContent = config.heading;
+                }
+
+                if (config.show_version_selector && config.versions && config.versions.length > 0) {
+                    versionGroup.classList.add('show');
+                    versionSelect.innerHTML = '';
+                    config.versions.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.textContent = v;
+                        if (v === config.default_version) {
+                            opt.selected = true;
+                        }
+                        versionSelect.appendChild(opt);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load config:', error);
+            }
+        }
+
+        // Help modal
+        helpBtn.addEventListener('click', async () => {
+            helpModal.classList.add('show');
+            try {
+                const response = await fetch('/help');
+                const helpData = await response.json();
+                helpTitle.textContent = helpData.title || 'Help';
+                helpBody.innerHTML = '';
+
+                if (helpData.sections) {
+                    helpData.sections.forEach(section => {
+                        const div = document.createElement('div');
+                        div.className = 'help-section';
+
+                        const h3 = document.createElement('h3');
+                        if (section.icon) {
+                            h3.innerHTML = `<span>${section.icon}</span> ${section.title}`;
+                        } else {
+                            h3.textContent = section.title;
+                        }
+
+                        const p = document.createElement('p');
+                        // Parse basic markdown: **bold**, URLs, and code blocks
+                        let html = section.content
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')  // **bold**
+                            .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:3px;font-size:13px;">$1</code>')  // `code`
+                            .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');  // URLs
+                        p.innerHTML = html;
+
+                        div.appendChild(h3);
+                        div.appendChild(p);
+                        helpBody.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                helpBody.innerHTML = '<p>Failed to load help content.</p>';
+            }
+        });
+
+        modalClose.addEventListener('click', () => {
+            helpModal.classList.remove('show');
+        });
+
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && helpModal.classList.contains('show')) {
+                helpModal.classList.remove('show');
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const apiKey = document.getElementById('apiKey').value;
+            const version = versionSelect.value;
+            const dryRun = document.getElementById('dryRun').checked;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = (dryRun ? 'Analyzing' : 'Deploying') + '<span class="spinner"></span>';
+            message.classList.remove('show');
+            dryRunOutput.classList.remove('show');
+            streamOutput.classList.remove('show');
+            streamOutput.innerHTML = '';
+
+            // Close any existing event source
+            if (activeEventSource) {
+                activeEventSource.close();
+                activeEventSource = null;
+            }
+
+            if (dryRun) {
+                // Dry run uses the regular endpoint for structured response
+                try {
+                    const response = await fetch('/deploy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ apiKey, version, dryRun: true })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.dry_run) {
+                        showDryRun(data);
+                        showMessage(data.message || 'Dry run complete', 'success');
+                    } else {
+                        showMessage(data.error || 'Deployment failed', 'error');
+                    }
+                } catch (error) {
+                    showMessage('Network error: ' + error.message, 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '🤙 Let it rip';
+                }
+            } else {
+                // Real deployment uses streaming endpoint
+                streamOutput.classList.add('show');
+                deployWithStreaming(apiKey, version);
+            }
+        });
+
+        function deployWithStreaming(apiKey, version) {
+            // Use fetch with ReadableStream for SSE since we need to POST
+            fetch('/deploy/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey, version })
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function processStream() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '🤙 Let it rip';
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop(); // Keep incomplete line in buffer
+
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    appendStreamLine(data);
+                                } catch (e) {
+                                    // Ignore parse errors
+                                }
+                            }
+                        });
+
+                        // Auto-scroll to bottom
+                        streamOutput.scrollTop = streamOutput.scrollHeight;
+
+                        processStream();
+                    }).catch(error => {
+                        appendStreamLine({ type: 'error', message: 'Stream error: ' + error.message });
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '🤙 Let it rip';
+                    });
+                }
+
+                processStream();
+            }).catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🤙 Let it rip';
+            });
+        }
+
+        function appendStreamLine(data) {
+            const line = document.createElement('div');
+            line.className = 'stream-line ' + (data.type || 'output');
+
+            let prefix = '';
+            switch (data.type) {
+                case 'start':
+                    prefix = '▶ ';
+                    break;
+                case 'section':
+                    prefix = '━━━ ';
+                    break;
+                case 'command':
+                    prefix = '$ ';
+                    break;
+                case 'error':
+                    prefix = '✗ ';
+                    showMessage(data.message, 'error');
+                    break;
+                case 'success':
+                    prefix = '✓ ';
+                    showMessage(data.message, 'success');
+                    break;
+                case 'info':
+                    prefix = 'ℹ ';
+                    break;
+                case 'complete':
+                    return; // Don't render 'complete' type
+            }
+
+            line.textContent = prefix + (data.message || '');
+            streamOutput.appendChild(line);
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message show ' + type;
+        }
+
+        function showDryRun(data) {
+            if (!data.would_execute) return;
+
+            const exec = data.would_execute;
+            let html = '<div class="dry-run-section">';
+            html += '<div class="dry-run-title">🔍 Dry Run Results</div>';
+            html += '<p style="margin-bottom:12px;color:rgba(255,255,255,0.7);">Commands that would be executed:</p></div>';
+
+            html += '<div class="dry-run-section">';
+            html += '<div class="dry-run-title">Environment</div>';
+            html += '<div class="dry-run-command">';
+            html += `Working Directory: ${exec.working_directory}<br>`;
+            for (const [key, val] of Object.entries(exec.environment)) {
+                html += `${key}=${val}<br>`;
+            }
+            html += '</div></div>';
+
+            if (exec.pre_commands && exec.pre_commands.length > 0) {
+                html += '<div class="dry-run-section">';
+                html += '<div class="dry-run-title">Pre-Commands</div>';
+                exec.pre_commands.forEach((cmd, i) => {
+                    html += `<div class="dry-run-command">${i + 1}. ${cmd}</div>`;
+                });
+                html += '</div>';
+            }
+
+            html += '<div class="dry-run-section">';
+            html += '<div class="dry-run-title">Main Command</div>';
+            html += `<div class="dry-run-command">${exec.main_command}</div>`;
+            html += '</div>';
+
+            html += '<div style="padding:12px;background:rgba(118,185,0,0.15);border:1px solid rgba(118,185,0,0.3);border-radius:4px;color:#76b900;margin-top:12px;">';
+            html += '✓ No commands were executed (dry-run mode)';
+            html += '</div>';
+
+            dryRunOutput.innerHTML = html;
+            dryRunOutput.classList.add('show');
+        }
+
+        // Initialize
+        loadConfig();
+    </script>
+</body>
+</html>

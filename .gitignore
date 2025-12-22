@@ -1,0 +1,5 @@
+.claude
+nemo-microservices-*
+venv/
+.venv/
+docs/

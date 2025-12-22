@@ -1,0 +1,40 @@
+{
+  "title": "NeMo Microservices Deployment Guide",
+  "sections": [
+    {
+      "title": "Prerequisites",
+      "icon": "📋",
+      "content": "Before deploying NeMo Microservices, ensure you have:\n\n• **NGC API Key** - Get yours at https://org.ngc.nvidia.com/setup/api-key\n• **Kubernetes Cluster** - For Helm deployments (kind, k3s, minikube, or cloud)\n• **Docker & Docker Compose** - For Docker Compose deployments\n• **kubectl & helm** - Command-line tools installed and configured\n• **Sufficient Resources** - NeMo requires significant memory and GPU for some services"
+    },
+    {
+      "title": "What Happens When You Deploy",
+      "icon": "🚀",
+      "content": "**Docker Compose Flow:**\n1. Your NGC API key is set as an environment variable\n2. Docker Compose reads the configuration\n3. Images are pulled from nvcr.io using your key\n4. All NeMo services start in containers\n\n**Helm Chart Flow:**\n1. Your NGC API key authenticates with NGC Helm registry\n2. The Helm chart is fetched (if auto-fetch is enabled)\n3. Chart is extracted and customized with your API key\n4. Kubernetes resources are created in the 'nemo' namespace\n5. Images are pulled using imagePullSecrets configured with your key\n6. Pods start running NeMo microservices"
+    },
+    {
+      "title": "Deployment Options",
+      "icon": "⚙️",
+      "content": "**Helm with Auto-Fetch** - Automatically downloads the specified version of the NeMo Helm chart from NGC, then deploys it. This is the recommended option for getting started.\n\n**Helm (Local Chart)** - Uses a Helm chart that already exists in your local directory. Choose this if you've already downloaded the chart or made custom modifications.\n\n**Docker Compose** - Deploys NeMo using Docker Compose. Simpler than Helm but less flexible. Best for single-node deployments and development."
+    },
+    {
+      "title": "Supported Versions",
+      "icon": "📦",
+      "content": "**NeMo Microservices 25.12.0** - Latest release with newest features\n\n**NeMo Microservices 25.10.0** - Previous stable release\n\nSelect the version that matches your requirements. If unsure, use the latest version (25.12.0)."
+    },
+    {
+      "title": "After Deployment",
+      "icon": "✅",
+      "content": "Once deployment completes:\n\n**For Helm:**\n• Check status: `kubectl get pods -n nemo`\n• View logs: `kubectl logs -n nemo <pod-name>`\n• Access services: `kubectl get svc -n nemo`\n\n**For Docker Compose:**\n• Check status: `docker-compose ps`\n• View logs: `docker-compose logs -f`\n• Access API: http://localhost:8000\n\nThe NeMo platform includes multiple microservices including Data Designer, Auditor, Evaluator, Guardrails, and more."
+    },
+    {
+      "title": "Troubleshooting",
+      "icon": "🔧",
+      "content": "**Common Issues:**\n\n• **Authentication Failed** - Verify your NGC API key is valid and has access to nemo-microservices\n• **Chart Not Found** - Ensure you have network access to helm.ngc.nvidia.com\n• **Pod Pending** - Check if your cluster has sufficient resources\n• **ImagePullBackOff** - Your NGC key may not have access to required images\n• **Connection Refused** - For local K8s, use native mode or host network mode\n\nFor detailed troubleshooting, check the deployment logs and consult the NeMo Microservices documentation."
+    },
+    {
+      "title": "Security Note",
+      "icon": "🔒",
+      "content": "Your NGC API key is:\n• Passed as an environment variable to the deployment process\n• NOT stored permanently by this application\n• Used to authenticate with NGC registries\n• Configured as a Kubernetes secret (for Helm) or environment variable (for Docker Compose)\n\nNever share your API key or commit it to version control."
+    }
+  ]
+}
