@@ -8,8 +8,8 @@
     "heading": "Deploy NeMo Microservices",
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
-      "rm -rf nemo-microservices-helm-chart-${VERSION}.tgz nemo-microservices-helm-chart",
-      "helm fetch https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-${VERSION}.tgz --username='$oauthtoken' --password=${NGC_API_KEY}",
+      "rm -rf nemo-microservices-helm-chart nemo-microservices-helm-chart-*.tgz",
+      "helm fetch https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-${VERSION}.tgz --username='$oauthtoken' --password=\"${NGC_API_KEY}\"",
       "tar -xzf nemo-microservices-helm-chart-${VERSION}.tgz"
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=${NGC_API_KEY} --create-namespace --namespace nemo",
