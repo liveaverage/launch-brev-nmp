@@ -7,6 +7,11 @@
       "content": "Before deploying NeMo Microservices, ensure you have:\n\n• **NGC API Key** - Get yours at https://org.ngc.nvidia.com/setup/api-key\n• **Kubernetes Cluster** - For Helm deployments (kind, k3s, minikube, or cloud)\n• **Docker & Docker Compose** - For Docker Compose deployments\n• **kubectl & helm** - Command-line tools installed and configured\n• **Sufficient Resources** - NeMo requires significant memory and GPU for some services"
     },
     {
+      "title": "NGC API Key Requirements",
+      "icon": "🔑",
+      "content": "Your NGC API key must have the following scopes/permissions:\n\n**Required Scopes:**\n• **NGC Catalog** - Access to pull container images from nvcr.io\n• **Private Registry** - Pull Helm charts and NeMo microservice images\n• **Cloud Functions** - Ability to invoke NGC endpoints and functions\n\n**How to verify:**\n1. Go to https://org.ngc.nvidia.com/setup/api-key\n2. Check that your key has access to the nemo-microservices resources\n3. Ensure your organization has NeMo Microservices entitlements\n\n**Common permission errors:**\n• `401 Unauthorized` - Key lacks required scopes\n• `403 Forbidden` - Organization not entitled to NeMo\n• `ImagePullBackOff` - Key cannot pull from nvcr.io/nvidia/nemo-microservices"
+    },
+    {
       "title": "What Happens When You Deploy",
       "icon": "🚀",
       "content": "**Docker Compose Flow:**\n1. Your NGC API key is set as an environment variable\n2. Docker Compose reads the configuration\n3. Images are pulled from nvcr.io using your key\n4. All NeMo services start in containers\n\n**Helm Chart Flow:**\n1. Your NGC API key authenticates with NGC Helm registry\n2. The Helm chart is fetched (if auto-fetch is enabled)\n3. Chart is extracted and customized with your API key\n4. Kubernetes resources are created in the 'nemo' namespace\n5. Images are pulled using imagePullSecrets configured with your key\n6. Pods start running NeMo microservices"
