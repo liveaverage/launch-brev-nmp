@@ -165,6 +165,39 @@ def get_help():
     """Return help content"""
     return jsonify(load_help_content())
 
+def run_command_async(command, working_dir, env, result_holder, output_queue):
+    """Run a command in a thread, putting output lines in queue"""
+    try:
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=working_dir,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        output_lines = []
+        for line in iter(process.stdout.readline, ''):
+            if line:
+                output_lines.append(line)
+                output_queue.put(('output', line.rstrip()))
+        
+        process.wait()
+        process.stdout.close()
+        
+        result_holder['returncode'] = process.returncode
+        result_holder['stdout'] = ''.join(output_lines)
+        result_holder['done'] = True
+    except Exception as e:
+        result_holder['returncode'] = 1
+        result_holder['stdout'] = str(e)
+        result_holder['done'] = True
+        output_queue.put(('error', f'Command error: {str(e)}'))
+
+
 @app.route('/deploy/stream', methods=['POST'])
 def deploy_stream():
     """Handle deployment with real-time log streaming via SSE"""
@@ -190,11 +223,12 @@ def deploy_stream():
                 return
 
             deploy_config = config[deploy_type]
-            working_dir = deploy_config.get('working_dir', '/app')
+            working_dir = deploy_config.get('working_dir', '.')
             env_var = deploy_config.get('env_var', 'NGC_API_KEY')
             pre_commands = deploy_config.get('pre_commands', [])
             command = deploy_config.get('command')
             log_sources = deploy_config.get('log_sources', [])
+            namespace = deploy_config.get('namespace', 'nemo')
 
             # Prepare environment
             env = os.environ.copy()
@@ -206,7 +240,7 @@ def deploy_stream():
 
             yield f"data: {json.dumps({'type': 'start', 'message': f'Starting {deploy_type} deployment...'})}\n\n"
 
-            # Execute pre-commands
+            # Execute pre-commands (synchronously)
             for idx, pre_cmd in enumerate(pre_commands, 1):
                 yield f"data: {json.dumps({'type': 'section', 'message': f'Pre-command {idx}/{len(pre_commands)}'})}\n\n"
                 yield f"data: {json.dumps({'type': 'command', 'message': pre_cmd})}\n\n"
@@ -220,42 +254,116 @@ def deploy_stream():
 
                 if result.returncode != 0:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Pre-command failed with exit code {result.returncode}'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': result.stdout if hasattr(result, 'stdout') else 'Unknown error'})}\n\n"
                     return
 
-            # Execute main command
+            # Execute main command asynchronously while monitoring pods
             yield f"data: {json.dumps({'type': 'section', 'message': 'Main Deployment'})}\n\n"
             yield f"data: {json.dumps({'type': 'command', 'message': command})}\n\n"
 
-            result = execute_command(command, working_dir, env, timeout=600, stream_queue=log_queue)
+            # Start helm install in background thread
+            result_holder = {'done': False, 'returncode': None, 'stdout': ''}
+            cmd_thread = threading.Thread(
+                target=run_command_async,
+                args=(command, working_dir, env, result_holder, log_queue)
+            )
+            cmd_thread.start()
 
-            # Send queued output
+            # Monitor pods while helm runs
+            poll_interval = 5
+            last_pod_status = ""
+            polls_without_change = 0
+            max_monitor_time = 300  # 5 minutes max monitoring
+            start_time = time.time()
+
+            while not result_holder['done'] or polls_without_change < 2:
+                # Send keepalive comment (SSE spec: lines starting with : are comments)
+                yield ": keepalive\n\n"
+                
+                # Drain any output from the command
+                while not log_queue.empty():
+                    try:
+                        msg_type, msg = log_queue.get_nowait()
+                        yield f"data: {json.dumps({'type': msg_type, 'message': msg})}\n\n"
+                    except:
+                        break
+
+                # Check if command is done
+                if result_holder['done']:
+                    polls_without_change += 1
+                    if polls_without_change >= 2:
+                        break
+
+                # Poll pod status
+                try:
+                    pod_result = subprocess.run(
+                        f"kubectl get pods -n {namespace} --no-headers 2>/dev/null | head -20",
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        env=env
+                    )
+                    pod_status = pod_result.stdout.strip()
+                    
+                    if pod_status and pod_status != last_pod_status:
+                        yield f"data: {json.dumps({'type': 'pods', 'message': '📦 Pod Status:'})}\n\n"
+                        for line in pod_status.split('\n')[:15]:  # Limit to 15 pods
+                            if line.strip():
+                                yield f"data: {json.dumps({'type': 'pod', 'message': line})}\n\n"
+                        last_pod_status = pod_status
+                except Exception as e:
+                    logger.debug(f"Pod poll error: {e}")
+
+                # Timeout check
+                if time.time() - start_time > max_monitor_time:
+                    yield f"data: {json.dumps({'type': 'info', 'message': 'Monitoring timeout reached, deployment may still be in progress'})}\n\n"
+                    break
+
+                time.sleep(poll_interval)
+
+            # Wait for thread to complete
+            cmd_thread.join(timeout=10)
+
+            # Final drain of output
             while not log_queue.empty():
-                msg_type, msg = log_queue.get()
-                yield f"data: {json.dumps({'type': msg_type, 'message': msg})}\n\n"
+                try:
+                    msg_type, msg = log_queue.get_nowait()
+                    yield f"data: {json.dumps({'type': msg_type, 'message': msg})}\n\n"
+                except:
+                    break
 
-            if result.returncode == 0:
-                yield f"data: {json.dumps({'type': 'success', 'message': 'Deployment completed successfully!'})}\n\n"
+            # Report final status
+            if result_holder['returncode'] == 0:
+                yield f"data: {json.dumps({'type': 'success', 'message': 'Helm install command completed successfully!'})}\n\n"
 
-                # Execute log source commands if configured
-                if log_sources:
-                    time.sleep(2)  # Give deployment time to stabilize
-                    yield f"data: {json.dumps({'type': 'section', 'message': 'Fetching logs...'})}\n\n"
-
-                    for log_source in log_sources:
-                        log_cmd = log_source.get('command', '').replace('${VERSION}', env['VERSION'])
-                        log_label = log_source.get('label', 'Logs')
-
-                        yield f"data: {json.dumps({'type': 'info', 'message': f'--- {log_label} ---'})}\n\n"
-
-                        log_result = execute_command(log_cmd, working_dir, env, timeout=30, stream_queue=log_queue)
-
-                        while not log_queue.empty():
-                            msg_type, msg = log_queue.get()
-                            yield f"data: {json.dumps({'type': 'log', 'message': msg})}\n\n"
+                # Final pod status
+                yield f"data: {json.dumps({'type': 'section', 'message': 'Final Status'})}\n\n"
+                for log_source in log_sources:
+                    log_cmd = log_source.get('command', '').replace('${VERSION}', env['VERSION'])
+                    log_label = log_source.get('label', 'Status')
+                    
+                    yield f"data: {json.dumps({'type': 'info', 'message': f'--- {log_label} ---'})}\n\n"
+                    
+                    try:
+                        log_result = subprocess.run(
+                            log_cmd, shell=True, capture_output=True, text=True, timeout=30, env=env
+                        )
+                        for line in log_result.stdout.strip().split('\n'):
+                            if line.strip():
+                                yield f"data: {json.dumps({'type': 'log', 'message': line})}\n\n"
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to get {log_label}: {e}'})}\n\n"
 
                 yield f"data: {json.dumps({'type': 'complete'})}\n\n"
             else:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Deployment failed with exit code {result.returncode}'})}\n\n"
+                error_output = result_holder.get('stdout', 'Unknown error')
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Deployment failed with exit code {result_holder[\"returncode\"]}'})}\n\n"
+                # Show the actual error from helm
+                if error_output:
+                    for line in error_output.split('\n')[-20:]:  # Last 20 lines
+                        if line.strip():
+                            yield f"data: {json.dumps({'type': 'error', 'message': line})}\n\n"
 
         except Exception as e:
             logger.error(f"Streaming error: {str(e)}")

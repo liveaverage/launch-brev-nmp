@@ -294,6 +294,25 @@
             font-size: 12px;
         }
 
+        .stream-line.pods {
+            color: #60a5fa;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .stream-line.pod {
+            color: rgba(255, 255, 255, 0.9);
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 12px;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            margin: 1px 0;
+        }
+
+        .stream-line.pod:nth-child(even) {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
         .dry-run-section {
             margin-bottom: 16px;
         }
@@ -717,6 +736,17 @@
                     break;
                 case 'info':
                     prefix = 'ℹ ';
+                    break;
+                case 'pods':
+                    // Clear previous pod lines before showing new status
+                    const oldPods = streamOutput.querySelectorAll('.stream-line.pod');
+                    oldPods.forEach(p => p.remove());
+                    const oldPodsHeader = streamOutput.querySelector('.stream-line.pods');
+                    if (oldPodsHeader) oldPodsHeader.remove();
+                    prefix = '';
+                    break;
+                case 'pod':
+                    prefix = '  ';
                     break;
                 case 'complete':
                     return; // Don't render 'complete' type
