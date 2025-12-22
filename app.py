@@ -358,7 +358,8 @@ def deploy_stream():
                 yield f"data: {json.dumps({'type': 'complete'})}\n\n"
             else:
                 error_output = result_holder.get('stdout', 'Unknown error')
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Deployment failed with exit code {result_holder[\"returncode\"]}'})}\n\n"
+                exit_code = result_holder['returncode']
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Deployment failed with exit code {exit_code}'})}\n\n"
                 # Show the actual error from helm
                 if error_output:
                     for line in error_output.split('\n')[-20:]:  # Last 20 lines
