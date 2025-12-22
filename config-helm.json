@@ -3,23 +3,35 @@
     "description": "NeMo Microservices Helm Chart (with auto-fetch)",
     "versions": ["25.12.0", "25.10.0"],
     "default_version": "25.12.0",
-    "working_dir": "/app",
+    "working_dir": ".",
     "env_var": "NGC_API_KEY",
+    "heading": "Deploy NeMo Microservices",
     "pre_commands": [
-      "rm -rf nemo-microservices-helm-chart-${VERSION}.tgz nemo-microservices-helm-chart-${VERSION}",
+      "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
+      "rm -rf nemo-microservices-helm-chart-${VERSION}.tgz nemo-microservices-helm-chart",
       "helm fetch https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-${VERSION}.tgz --username='$oauthtoken' --password=${NGC_API_KEY}",
       "tar -xzf nemo-microservices-helm-chart-${VERSION}.tgz"
     ],
-    "command": "helm install nemo-microservices ./nemo-microservices --set ngcAPIKey=${NGC_API_KEY} --create-namespace --namespace nemo"
+    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=${NGC_API_KEY} --create-namespace --namespace nemo",
+    "log_sources": [
+      {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
+      {"label": "Services", "command": "kubectl get svc -n nemo"}
+    ]
   },
   "helm-nemo-local": {
     "description": "NeMo Microservices Helm Chart (local chart)",
     "versions": [],
     "default_version": "",
-    "working_dir": "/app",
+    "working_dir": ".",
     "env_var": "NGC_API_KEY",
-    "pre_commands": [],
-    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=${NGC_API_KEY} --create-namespace --namespace nemo"
+    "pre_commands": [
+      "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s"
+    ],
+    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=${NGC_API_KEY} --create-namespace --namespace nemo",
+    "log_sources": [
+      {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
+      {"label": "Services", "command": "kubectl get svc -n nemo"}
+    ]
   },
   "docker-compose-nemo": {
     "description": "NeMo Microservices Docker Compose",

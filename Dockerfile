@@ -1,17 +1,27 @@
 FROM python:3.11-slim
 
-# Install Docker CLI, Docker Compose, and Helm
+# OCI labels for GHCR - enables linking to repo and public visibility inheritance
+LABEL org.opencontainers.image.description="Brev Launch NMP - NeMo Microservices deployment UI"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install Docker CLI, Docker Compose, Helm, and kubectl
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     gnupg \
     lsb-release \
     && mkdir -p /etc/apt/keyrings \
+    # Docker CLI
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
     && apt-get update \
     && apt-get install -y docker-ce-cli docker-compose-plugin \
+    # Helm
     && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
+    # kubectl
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin/ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
