@@ -569,11 +569,8 @@ def deploy_stream():
                 # Success message with links
                 yield emit_log({'type': 'section', 'message': '🎉 Deployment Complete!'})
                 yield emit_log({'type': 'success', 'message': 'NeMo Microservices are now running.'})
-                yield emit_log({'type': 'info', 'message': ''})
                 yield emit_log({'type': 'link', 'message': 'Open NeMo Studio', 'url': '/studio'})
                 yield emit_log({'type': 'link', 'message': 'View Deployment Status', 'url': '/interlude'})
-                yield emit_log({'type': 'info', 'message': ''})
-                yield emit_log({'type': 'info', 'message': 'Note: Some pods may still be starting. Check /studio in a few minutes if not ready.'})
 
                 # Save persistent state on success
                 save_persistent_state({

@@ -66,6 +66,12 @@ http {
     sendfile on;
     keepalive_timeout 65;
     
+    # CORS: Map request method to determine if it's a preflight
+    map \$request_method \$cors_method {
+        OPTIONS 'preflight';
+        default 'normal';
+    }
+    
     # Flask SPA backend (deployment UI)
     upstream flask_backend {
         server $FLASK_BACKEND;
@@ -136,23 +142,18 @@ http {
             proxy_read_timeout 86400s;
         }
         
-        # Everything else goes to NeMo
+        # Everything else goes to NeMo (with CORS support)
         location / {
-            # CORS headers for cross-origin requests between studio/nim/data hostnames
-            if (\$request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '*' always;
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token' always;
+            # Handle CORS preflight
+            if (\$cors_method = 'preflight') {
+                add_header 'Access-Control-Allow-Origin' '*';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+                add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token,Accept';
                 add_header 'Access-Control-Max-Age' 1728000;
                 add_header 'Content-Type' 'text/plain; charset=utf-8';
                 add_header 'Content-Length' 0;
                 return 204;
             }
-            
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token' always;
-            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
             
             proxy_pass http://nemo_backend;
             proxy_http_version 1.1;
@@ -166,6 +167,13 @@ http {
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             proxy_buffering off;
+            
+            # Add CORS headers to proxied responses
+            proxy_hide_header 'Access-Control-Allow-Origin';
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token,Accept' always;
+            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
         }
     }
 }
