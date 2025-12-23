@@ -357,6 +357,7 @@ def deploy_stream():
             data = request.get_json()
             api_key = data.get('apiKey')
             version = data.get('version', '')
+            platform_url = data.get('platformUrl', '')
 
             if not api_key:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'API key is required'})}\n\n"
@@ -415,6 +416,7 @@ def deploy_stream():
             env = os.environ.copy()
             env[env_var] = api_key
             env['VERSION'] = version or deploy_config.get('default_version', '')
+            env['PLATFORM_URL'] = platform_url
 
             # Create queue for streaming
             log_queue = queue.Queue()
@@ -550,23 +552,14 @@ def deploy_stream():
                         else:
                             yield emit_log({'type': 'success', 'message': f'Post-command completed'})
 
-                # Final pod status
-                yield emit_log({'type': 'section', 'message': 'Final Status'})
-                for log_source in log_sources:
-                    log_cmd = log_source.get('command', '').replace('${VERSION}', env['VERSION'])
-                    log_label = log_source.get('label', 'Status')
-                    
-                    yield emit_log({'type': 'info', 'message': f'--- {log_label} ---'})
-                    
-                    try:
-                        log_result = subprocess.run(
-                            log_cmd, shell=True, capture_output=True, text=True, timeout=30, env=env
-                        )
-                        for line in log_result.stdout.strip().split('\n'):
-                            if line.strip():
-                                yield emit_log({'type': 'log', 'message': line})
-                    except Exception as e:
-                        yield emit_log({'type': 'error', 'message': f'Failed to get {log_label}: {e}'})
+                # Success message with links
+                yield emit_log({'type': 'section', 'message': '🎉 Deployment Complete!'})
+                yield emit_log({'type': 'success', 'message': 'NeMo Microservices are now running.'})
+                yield emit_log({'type': 'info', 'message': ''})
+                yield emit_log({'type': 'link', 'message': 'Open NeMo Studio', 'url': '/studio'})
+                yield emit_log({'type': 'link', 'message': 'View Deployment Status', 'url': '/interlude'})
+                yield emit_log({'type': 'info', 'message': ''})
+                yield emit_log({'type': 'info', 'message': 'Note: Some pods may still be starting. Check /studio in a few minutes if not ready.'})
 
                 # Save persistent state on success
                 save_persistent_state({

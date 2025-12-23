@@ -101,8 +101,8 @@ http {
         sub_filter 'https://nemo-platform.test:3000' '';
         
         # Inject VITE environment variables for NeMo Studio
-        # These get checked at runtime by the frontend JS
-        sub_filter '</head>' '<script>window.VITE_PLATFORM_BASE_URL="";window.VITE_ENTITY_STORE_MICROSERVICE_URL="/v1";window.VITE_NIM_PROXY_URL="/v1";window.VITE_DATA_STORE_URL="/v1";</script></head>';
+        # Computes base URL from browser location for Cloudflare tunnel compatibility
+        sub_filter '</head>' '<script>(function(){var b=window.location.origin;window.VITE_PLATFORM_BASE_URL=b;window.VITE_ENTITY_STORE_MICROSERVICE_URL=b+"/v1";window.VITE_NIM_PROXY_URL=b;window.VITE_DATA_STORE_URL=b+"/v1";window.VITE_BASE_URL=b;console.log("[Interlude] Injected VITE vars:",b);})();</script></head>';
         
         sub_filter_once off;
         sub_filter_types text/html text/javascript application/javascript application/json text/plain *;
