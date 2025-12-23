@@ -53,10 +53,10 @@ COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh nemo-proxy/*.sh 2>/dev/null || true
 
 # Expose ports:
-# 80   - nginx HTTP (single entry point)
-# 443  - nginx HTTPS (single entry point)
+# 8888 - nginx HTTP (single entry point, avoids conflict with k8s ingress on :80)
+# 8443 - nginx HTTPS (single entry point)
 # Flask runs on internal :8080, not exposed
-EXPOSE 80 443
+EXPOSE 8888 8443
 
 # Create data directory for persistent state
 RUN mkdir -p /app/data

@@ -8,6 +8,8 @@ set -e
 
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
 STATE_FILE="${STATE_FILE:-/app/data/deployment.state}"
+HTTP_PORT="${HTTP_PORT:-8888}"
+HTTPS_PORT="${HTTPS_PORT:-8443}"
 
 # Stop any existing nginx (from package install)
 pkill nginx 2>/dev/null || true
@@ -40,8 +42,8 @@ write_nginx_config() {
     local mode="$1"
     
     if [ "$mode" = "pre" ]; then
-        echo "📝 Writing nginx config (pre-deployment mode: / → Flask SPA)"
-        cat > /app/nginx.conf << 'NGINX'
+        echo "📝 Writing nginx config (pre-deployment mode: :$HTTP_PORT → Flask SPA)"
+        cat > /app/nginx.conf << NGINX
 # PRE-DEPLOYMENT MODE: All traffic goes to Flask SPA
 worker_processes auto;
 error_log /dev/stderr warn;
@@ -61,8 +63,8 @@ http {
     }
     
     server {
-        listen 80;
-        listen 443 ssl;
+        listen $HTTP_PORT;
+        listen $HTTPS_PORT ssl;
         server_name _;
         
         ssl_certificate /app/certs/server.crt;
@@ -73,10 +75,10 @@ http {
         location / {
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
             # SSE support for streaming logs
             proxy_buffering off;
             proxy_cache off;
@@ -128,24 +130,24 @@ for i in {1..30}; do
 done
 
 # Start nginx
-echo "🌐 Starting nginx on :80/:443..."
+echo "🌐 Starting nginx on :$HTTP_PORT/:$HTTPS_PORT..."
 nginx -c /app/nginx.conf -g 'daemon off;' &
 NGINX_PID=$!
 
 # Banner
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  Interlude - NeMo Deployment Launcher                        ║"
-echo "╠══════════════════════════════════════════════════════════════╣"
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║  Interlude - NeMo Deployment Launcher                          ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
 if is_deployed; then
-echo "║  Mode: POST-DEPLOYMENT                                       ║"
-echo "║  NeMo:       http://localhost:80  (or https://:443)          ║"
-echo "║  Launcher:   http://localhost:80$LAUNCHER_PATH                      ║"
+echo "║  Mode: POST-DEPLOYMENT                                         ║"
+echo "║  NeMo:       http://localhost:$HTTP_PORT                                ║"
+echo "║  Launcher:   http://localhost:$HTTP_PORT$LAUNCHER_PATH                        ║"
 else
-echo "║  Mode: PRE-DEPLOYMENT (first launch)                         ║"
-echo "║  Launcher:   http://localhost:80  (or https://:443)          ║"
+echo "║  Mode: PRE-DEPLOYMENT (first launch)                           ║"
+echo "║  Launcher:   http://localhost:$HTTP_PORT  (https://:$HTTPS_PORT)              ║"
 fi
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Handle shutdown

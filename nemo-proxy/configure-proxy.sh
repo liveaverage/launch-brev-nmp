@@ -7,6 +7,8 @@ NAMESPACE="${NAMESPACE:-nemo}"
 NGINX_CONF="${NGINX_CONF:-/app/nginx.conf}"
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
 FLASK_BACKEND="${FLASK_BACKEND:-127.0.0.1:8080}"
+HTTP_PORT="${HTTP_PORT:-8888}"
+HTTPS_PORT="${HTTPS_PORT:-8443}"
 
 echo "🔍 Discovering K8s backend..."
 
@@ -70,8 +72,8 @@ http {
     }
     
     server {
-        listen 80;
-        listen 443 ssl;
+        listen $HTTP_PORT;
+        listen $HTTPS_PORT ssl;
         server_name _;
         
         ssl_certificate /app/certs/server.crt;
