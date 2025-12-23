@@ -393,7 +393,9 @@ def deploy_stream():
             deploy_type = os.environ.get('DEPLOY_TYPE')
 
             if not deploy_type:
-                deploy_type = list(config.keys())[0] if config else None
+                # Use first non-meta deployment type
+                deploy_types = [k for k in config.keys() if not k.startswith('_')]
+                deploy_type = deploy_types[0] if deploy_types else None
 
             if not deploy_type or deploy_type not in config:
                 yield emit_log({'type': 'error', 'message': 'No deployment configured'})
@@ -619,8 +621,9 @@ def deploy():
         deploy_type = os.environ.get('DEPLOY_TYPE')
 
         if not deploy_type:
-            # Use first deployment type in config
-            deploy_type = list(config.keys())[0] if config else None
+            # Use first non-meta deployment type
+            deploy_types = [k for k in config.keys() if not k.startswith('_')]
+            deploy_type = deploy_types[0] if deploy_types else None
 
         if not deploy_type or deploy_type not in config:
             return jsonify({'error': 'No deployment configured'}), 500

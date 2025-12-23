@@ -13,6 +13,7 @@
     "namespace": "nemo",
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
+      "echo '🌐 Checking ingress controller...' && (kubectl get daemonset -n ingress nginx-ingress-microk8s-controller 2>/dev/null && echo '   ✓ microk8s ingress enabled') || (command -v microk8s &>/dev/null && echo '   Enabling microk8s ingress...' && microk8s enable ingress) || echo '   (non-microk8s cluster, ensure ingress-nginx is installed)'",
       "echo '🌋 Installing Volcano scheduler...' && kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml 2>/dev/null || echo '   (Volcano may already be installed)'",
       "rm -rf nemo-microservices-helm-chart nemo-microservices-helm-chart-*.tgz",
       "helm fetch https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-${VERSION}.tgz --username='$oauthtoken' --password=\"${NGC_API_KEY}\"",
@@ -43,6 +44,7 @@
     "namespace": "nemo",
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
+      "echo '🌐 Checking ingress controller...' && (kubectl get daemonset -n ingress nginx-ingress-microk8s-controller 2>/dev/null && echo '   ✓ microk8s ingress enabled') || (command -v microk8s &>/dev/null && echo '   Enabling microk8s ingress...' && microk8s enable ingress) || echo '   (non-microk8s cluster, ensure ingress-nginx is installed)'",
       "echo '🌋 Installing Volcano scheduler...' && kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml 2>/dev/null || echo '   (Volcano may already be installed)'"
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",

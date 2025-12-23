@@ -1,14 +1,16 @@
 #!/bin/bash
-# Bootstrap script for NeMo Microservices Launcher
+# Bootstrap script for Interlude (NeMo Microservices Launcher)
 # Usage: curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 set -e
 
 REPO_URL="https://github.com/liveaverage/launch-brev-nmp.git"
 IMAGE="ghcr.io/liveaverage/launch-brev-nmp:latest"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/launch-brev-nmp}"
+CONTAINER_NAME="interlude"
+OLD_CONTAINER_NAME="brev-launch-nmp"  # For cleanup of legacy containers
 
 echo "════════════════════════════════════════════════════════════"
-echo "  NeMo Microservices Launcher - Bootstrap"
+echo "  Interlude - NeMo Microservices Launcher"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
@@ -22,6 +24,11 @@ fi
 if ! command -v kubectl &> /dev/null; then
     echo "⚠️  kubectl not found - you'll need it on the host to verify deployments"
 fi
+
+# Stop any existing containers (both old and new names)
+echo "🧹 Cleaning up existing containers..."
+docker rm -f "$CONTAINER_NAME" 2>/dev/null && echo "   Removed: $CONTAINER_NAME" || true
+docker rm -f "$OLD_CONTAINER_NAME" 2>/dev/null && echo "   Removed: $OLD_CONTAINER_NAME (legacy)" || true
 
 # Clone or update repo
 if [ -d "$INSTALL_DIR" ]; then
@@ -57,10 +64,17 @@ echo ""
 echo "════════════════════════════════════════════════════════════"
 echo "  ✓ Launcher is running!"
 echo ""
-echo "  🌐 Open: http://localhost:8080"
+echo "  ┌─────────────────────────────────────────────────────┐"
+echo "  │  First launch (pre-deployment):                     │"
+echo "  │    http://localhost:80   (deployment UI)            │"
+echo "  │                                                     │"
+echo "  │  After deployment:                                  │"
+echo "  │    http://localhost:80            (NeMo Studio)     │"
+echo "  │    http://localhost:80/interlude  (deployment UI)   │"
+echo "  └─────────────────────────────────────────────────────┘"
 echo ""
 echo "  📁 Config: $INSTALL_DIR/config-helm.json"
-echo "  📋 Logs:   docker logs -f brev-launch-nmp"
-echo "  🛑 Stop:   docker stop brev-launch-nmp"
+echo "  📋 Logs:   docker logs -f $CONTAINER_NAME"
+echo "  🛑 Stop:   docker stop $CONTAINER_NAME"
 echo "════════════════════════════════════════════════════════════"
 
