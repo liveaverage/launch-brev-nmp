@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     lsb-release \
     openssl \
+    procps \
     debian-keyring \
     debian-archive-keyring \
     apt-transport-https \
@@ -28,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     && mv kubectl /usr/local/bin/ \
     # nginx (has sub_filter for response body rewriting)
     && apt-get install -y nginx \
+    # Disable default nginx site and service
+    && rm -f /etc/nginx/sites-enabled/default \
+    && update-rc.d nginx disable 2>/dev/null || true \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -9,6 +9,10 @@ set -e
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
 STATE_FILE="${STATE_FILE:-/app/data/deployment.state}"
 
+# Stop any existing nginx (from package install)
+pkill nginx 2>/dev/null || true
+sleep 0.5
+
 # Generate self-signed cert for :443
 if [ ! -f /app/certs/server.crt ]; then
     mkdir -p /app/certs
@@ -98,15 +102,35 @@ else
     write_nginx_config "pre"
 fi
 
+# Test nginx config
+echo "🔍 Testing nginx config..."
+if ! nginx -t -c /app/nginx.conf 2>&1; then
+    echo "❌ nginx config test failed!"
+    cat /app/nginx.conf
+    exit 1
+fi
+echo "   ✓ nginx config OK"
+
+# Start Flask FIRST (internal, not exposed directly)
+echo "🚀 Starting Flask SPA on :8080 (internal)..."
+cd /app
+python app.py &
+FLASK_PID=$!
+
+# Wait for Flask to be ready
+echo "   Waiting for Flask..."
+for i in {1..30}; do
+    if curl -s http://127.0.0.1:8080/ > /dev/null 2>&1; then
+        echo "   ✓ Flask ready"
+        break
+    fi
+    sleep 0.5
+done
+
 # Start nginx
 echo "🌐 Starting nginx on :80/:443..."
 nginx -c /app/nginx.conf -g 'daemon off;' &
 NGINX_PID=$!
-
-# Start Flask (internal, not exposed directly)
-echo "🚀 Starting Flask SPA on :8080 (internal)..."
-python app.py &
-FLASK_PID=$!
 
 # Banner
 echo ""
