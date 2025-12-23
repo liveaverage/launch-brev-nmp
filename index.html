@@ -666,6 +666,38 @@
         }
         
         console.log('Interlude base path:', basePath || '(root)');
+        
+        // Derive NeMo service URLs from current hostname
+        // Pattern: <prefix>-<base> where base is everything after first hyphen
+        // e.g., studio-lccpkmz8f.brevlab.com → base = lccpkmz8f.brevlab.com
+        function getNemoUrls() {
+            const hostname = window.location.hostname;
+            const protocol = window.location.protocol;
+            
+            // Extract base: everything after the first hyphen
+            const firstHyphen = hostname.indexOf('-');
+            let base;
+            if (firstHyphen > 0) {
+                base = hostname.substring(firstHyphen + 1);
+            } else {
+                // No hyphen found, use full hostname as base
+                base = hostname;
+            }
+            
+            // Construct the three required URLs
+            const urls = {
+                platformUrl: `${protocol}//studio-${base}`,
+                nimProxyUrl: `${protocol}//nim-${base}`,
+                dataStoreUrl: `${protocol}//data-${base}`,
+                // Also provide the ingress hostnames (without protocol)
+                ingressHost: `studio-${base}`,
+                nimProxyHost: `nim-${base}`,
+                dataStoreHost: `data-${base}`
+            };
+            
+            console.log('NeMo URLs derived from hostname:', urls);
+            return urls;
+        }
 
 
         // Load configuration
@@ -820,40 +852,74 @@
             }
         });
         
-        // Uninstall button
+        // Uninstall button with streaming output
         uninstallBtn.addEventListener('click', async () => {
             if (!confirm('Are you sure you want to uninstall? This will remove the deployed application.')) {
                 return;
             }
             
             uninstallBtn.disabled = true;
-            uninstallBtn.textContent = 'Uninstalling...';
+            uninstallBtn.innerHTML = 'Uninstalling<span class="spinner"></span>';
             message.classList.remove('show');
-            streamOutput.classList.remove('show');
+            streamOutput.innerHTML = '';
+            streamOutput.classList.add('show');
             
-            try {
-                const response = await fetch(apiUrl('/uninstall'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
+            fetch(apiUrl('/uninstall'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
                 
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showMessage('Uninstall completed successfully!', 'success');
-                    exitHistoryMode();
-                    // Reload config to update state
-                    await loadConfig();
-                } else {
-                    showMessage(data.error || 'Uninstall failed', 'error');
-                    uninstallBtn.disabled = false;
-                    uninstallBtn.textContent = '🗑️ Uninstall';
+                function processStream() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            // Uninstall complete - exit history mode
+                            setTimeout(() => {
+                                exitHistoryMode();
+                                loadConfig();
+                            }, 1500);
+                            return;
+                        }
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    appendStreamLine(data);
+                                    
+                                    // Check for complete signal
+                                    if (data.type === 'complete') {
+                                        if (data.success) {
+                                            showMessage('Uninstall completed!', 'success');
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Ignore parse errors
+                                }
+                            }
+                        });
+                        
+                        streamOutput.scrollTop = streamOutput.scrollHeight;
+                        processStream();
+                    }).catch(error => {
+                        appendStreamLine({ type: 'error', message: 'Stream error: ' + error.message });
+                        uninstallBtn.disabled = false;
+                        uninstallBtn.textContent = '🗑️ Uninstall';
+                    });
                 }
-            } catch (error) {
+                
+                processStream();
+            }).catch(error => {
                 showMessage('Uninstall failed: ' + error.message, 'error');
                 uninstallBtn.disabled = false;
                 uninstallBtn.textContent = '🗑️ Uninstall';
-            }
+            });
         });
 
         // Form submission
@@ -889,7 +955,7 @@
                     const response = await fetch(apiUrl('/deploy'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ apiKey, version, dryRun: true, platformUrl: window.location.origin })
+                        body: JSON.stringify({ apiKey, version, dryRun: true, ...getNemoUrls() })
                     });
 
                     const data = await response.json();
@@ -918,7 +984,7 @@
             fetch(apiUrl('/deploy/stream'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey, version, platformUrl: window.location.origin })
+                body: JSON.stringify({ apiKey, version, ...getNemoUrls() })
             }).then(response => {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();

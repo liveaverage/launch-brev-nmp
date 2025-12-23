@@ -357,7 +357,14 @@ def deploy_stream():
             data = request.get_json()
             api_key = data.get('apiKey')
             version = data.get('version', '')
+            # NeMo service URLs derived from browser hostname
             platform_url = data.get('platformUrl', '')
+            nim_proxy_url = data.get('nimProxyUrl', '')
+            data_store_url = data.get('dataStoreUrl', '')
+            # Ingress hostnames
+            ingress_host = data.get('ingressHost', '')
+            nim_proxy_host = data.get('nimProxyHost', '')
+            data_store_host = data.get('dataStoreHost', '')
 
             if not api_key:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'API key is required'})}\n\n"
@@ -416,7 +423,14 @@ def deploy_stream():
             env = os.environ.copy()
             env[env_var] = api_key
             env['VERSION'] = version or deploy_config.get('default_version', '')
+            # NeMo service URLs
             env['PLATFORM_URL'] = platform_url
+            env['NIM_PROXY_URL'] = nim_proxy_url
+            env['DATA_STORE_URL'] = data_store_url
+            # Ingress hostnames  
+            env['INGRESS_HOST'] = ingress_host
+            env['NIM_PROXY_HOST'] = nim_proxy_host
+            env['DATA_STORE_HOST'] = data_store_host
 
             # Create queue for streaming
             log_queue = queue.Queue()
@@ -709,54 +723,93 @@ def deploy():
 
 @app.route('/uninstall', methods=['POST'])
 def uninstall():
-    """Uninstall the deployed application"""
-    try:
-        # Check if we're deployed
-        persistent_state = get_persistent_state()
-        if not persistent_state.get('deployed'):
-            return jsonify({'error': 'Nothing to uninstall'}), 400
-        
-        config = load_config()
-        deploy_type = persistent_state.get('deploy_type')
-        
-        if not deploy_type or deploy_type not in config:
-            # Fall back to first deploy type
-            deploy_types = [k for k in config.keys() if not k.startswith('_')]
-            deploy_type = deploy_types[0] if deploy_types else None
-        
-        if not deploy_type:
-            return jsonify({'error': 'No deployment type configured'}), 500
-        
-        deploy_config = config[deploy_type]
-        uninstall_commands = deploy_config.get('uninstall_commands', [])
-        
-        if not uninstall_commands:
-            return jsonify({'error': 'No uninstall commands configured'}), 400
-        
-        working_dir = deploy_config.get('working_dir', '.')
-        env = os.environ.copy()
-        
-        outputs = []
-        for cmd in uninstall_commands:
-            logger.info(f"Uninstall command: {cmd}")
-            result = execute_command(cmd, working_dir, env, timeout=120)
-            outputs.append(result.stdout)
+    """Uninstall with streaming output"""
+    def generate():
+        try:
+            # Check if we're deployed
+            persistent_state = get_persistent_state()
+            if not persistent_state.get('deployed'):
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Nothing to uninstall'})}\n\n"
+                return
             
-            if result.returncode != 0:
-                logger.warning(f"Uninstall command returned {result.returncode}: {result.stderr}")
-                # Continue with other commands even if one fails
-        
-        # Clear persistent state
-        clear_persistent_state()
-        
-        return jsonify({
-            'message': 'Uninstall completed',
-            'output': '\n'.join(outputs)
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Uninstall error: {str(e)}")
-        return jsonify({'error': f'Uninstall error: {str(e)}'}), 500
+            config = load_config()
+            deploy_type = persistent_state.get('deploy_type')
+            
+            if not deploy_type or deploy_type not in config:
+                deploy_types = [k for k in config.keys() if not k.startswith('_')]
+                deploy_type = deploy_types[0] if deploy_types else None
+            
+            if not deploy_type:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No deployment type configured'})}\n\n"
+                return
+            
+            deploy_config = config[deploy_type]
+            uninstall_commands = deploy_config.get('uninstall_commands', [])
+            
+            if not uninstall_commands:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No uninstall commands configured'})}\n\n"
+                return
+            
+            working_dir = deploy_config.get('working_dir', '.')
+            env = os.environ.copy()
+            
+            yield f"data: {json.dumps({'type': 'start', 'message': 'Starting uninstall...'})}\n\n"
+            
+            all_success = True
+            for i, cmd in enumerate(uninstall_commands, 1):
+                yield f"data: {json.dumps({'type': 'section', 'message': f'Command {i}/{len(uninstall_commands)}'})}\n\n"
+                yield f"data: {json.dumps({'type': 'command', 'message': cmd})}\n\n"
+                
+                logger.info(f"Uninstall command: {cmd}")
+                
+                try:
+                    process = subprocess.Popen(
+                        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, cwd=working_dir, env=env
+                    )
+                    
+                    for line in process.stdout:
+                        line = line.rstrip()
+                        if line:
+                            yield f"data: {json.dumps({'type': 'output', 'message': line})}\n\n"
+                    
+                    process.wait()
+                    
+                    if process.returncode != 0:
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'Command exited with code {process.returncode}'})}\n\n"
+                        all_success = False
+                    else:
+                        yield f"data: {json.dumps({'type': 'success', 'message': '✓ Command completed'})}\n\n"
+                        
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Command error: {str(e)}'})}\n\n"
+                    all_success = False
+            
+            # Clear persistent state
+            clear_persistent_state()
+            
+            yield f"data: {json.dumps({'type': 'section', 'message': 'Uninstall Complete'})}\n\n"
+            if all_success:
+                yield f"data: {json.dumps({'type': 'success', 'message': '✓ All resources removed successfully'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'info', 'message': 'Some commands had warnings - resources may still be removed'})}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'complete', 'success': True})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Uninstall error: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Uninstall error: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'success': False})}\n\n"
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive'
+        }
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)

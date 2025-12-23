@@ -44,7 +44,7 @@ write_nginx_config() {
     if [ "$mode" = "pre" ]; then
         echo "📝 Writing nginx config (pre-deployment mode: :$HTTP_PORT → Flask SPA)"
         cat > /app/nginx.conf << NGINX
-# PRE-DEPLOYMENT MODE: All traffic goes to Flask SPA
+# PRE-DEPLOYMENT MODE: Root and $LAUNCHER_PATH both go to Flask SPA
 worker_processes auto;
 error_log /dev/stderr warn;
 pid /tmp/nginx.pid;
@@ -71,7 +71,37 @@ http {
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         
-        # All requests go to Flask
+        # Flask SPA always accessible at $LAUNCHER_PATH (rewrite to remove prefix)
+        location $LAUNCHER_PATH {
+            rewrite ^$LAUNCHER_PATH(.*)\$ /\$1 break;
+            proxy_pass http://flask_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header X-Script-Name $LAUNCHER_PATH;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 86400s;
+        }
+        
+        # Flask API endpoints under $LAUNCHER_PATH
+        location ~ ^$LAUNCHER_PATH/(config|help|deploy|state|uninstall|assets) {
+            rewrite ^$LAUNCHER_PATH(.*)\$ \$1 break;
+            proxy_pass http://flask_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header X-Script-Name $LAUNCHER_PATH;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 86400s;
+        }
+        
+        # Root also goes to Flask (pre-deployment convenience)
         location / {
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
@@ -79,7 +109,6 @@ http {
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            # SSE support for streaming logs
             proxy_buffering off;
             proxy_cache off;
             proxy_read_timeout 86400s;
@@ -141,11 +170,12 @@ echo "║  Interlude - NeMo Deployment Launcher                          ║"
 echo "╠════════════════════════════════════════════════════════════════╣"
 if is_deployed; then
 echo "║  Mode: POST-DEPLOYMENT                                         ║"
-echo "║  NeMo:       http://localhost:$HTTP_PORT                                ║"
+echo "║  NeMo:       http://localhost:$HTTP_PORT/                               ║"
 echo "║  Launcher:   http://localhost:$HTTP_PORT$LAUNCHER_PATH                        ║"
 else
 echo "║  Mode: PRE-DEPLOYMENT (first launch)                           ║"
-echo "║  Launcher:   http://localhost:$HTTP_PORT  (https://:$HTTPS_PORT)              ║"
+echo "║  Launcher:   http://localhost:$HTTP_PORT/                               ║"
+echo "║              http://localhost:$HTTP_PORT$LAUNCHER_PATH  (also works)          ║"
 fi
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
