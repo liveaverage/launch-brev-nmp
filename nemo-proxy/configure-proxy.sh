@@ -88,13 +88,22 @@ http {
         # Disable gzip for sub_filter
         proxy_set_header Accept-Encoding "";
         
-        # URL rewriting for NeMo
+        # URL rewriting for NeMo - convert internal hostnames to relative paths
         sub_filter 'http://nemo.test:3000' '';
         sub_filter 'http://nim.test:3000' '';
         sub_filter 'http://data-store.test:3000' '';
+        sub_filter 'http://entity-store.test:3000' '';
+        sub_filter 'http://nemo-platform.test:3000' '';
         sub_filter 'https://nemo.test:3000' '';
         sub_filter 'https://nim.test:3000' '';
         sub_filter 'https://data-store.test:3000' '';
+        sub_filter 'https://entity-store.test:3000' '';
+        sub_filter 'https://nemo-platform.test:3000' '';
+        
+        # Inject VITE environment variables for NeMo Studio
+        # These get checked at runtime by the frontend JS
+        sub_filter '</head>' '<script>window.VITE_PLATFORM_BASE_URL="";window.VITE_ENTITY_STORE_MICROSERVICE_URL="/v1";window.VITE_NIM_PROXY_URL="/v1";window.VITE_DATA_STORE_URL="/v1";</script></head>';
+        
         sub_filter_once off;
         sub_filter_types text/html text/javascript application/javascript application/json text/plain *;
         
