@@ -21,6 +21,7 @@
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set studio.platformBaseUrl=\"${PLATFORM_URL}\" --set studio.entityStoreUrl=\"${PLATFORM_URL}\" --set studio.nimProxyUrl=\"${NIM_PROXY_URL:-$PLATFORM_URL}\" --set studio.dataStoreUrl=\"${DATA_STORE_URL:-$PLATFORM_URL}\" --set ingress.hosts.default.name=\"${INGRESS_HOST:-}\" --set ingress.hosts.nimProxy.name=\"${NIM_PROXY_HOST:-nim.local}\" --set ingress.hosts.dataStore.name=\"${DATA_STORE_HOST:-data-store.local}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
     "post_commands": [
+      "echo '🔧 Patching ingress with CORS annotations...' && kubectl annotate ingress -n nemo nemo-microservices-helm-chart nginx.ingress.kubernetes.io/enable-cors='true' nginx.ingress.kubernetes.io/cors-allow-origin='*' nginx.ingress.kubernetes.io/cors-allow-methods='GET, POST, PUT, DELETE, PATCH, OPTIONS' nginx.ingress.kubernetes.io/cors-allow-headers='DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token,Accept' nginx.ingress.kubernetes.io/cors-allow-credentials='true' --overwrite || echo '   (annotation failed, CORS may need manual config)'",
       "bash nemo-proxy/configure-proxy.sh"
     ],
     "success_check": "kubectl get pods -n nemo --no-headers | grep -v Completed | grep -E 'Running|Pending' | head -1",
@@ -49,6 +50,7 @@
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set studio.platformBaseUrl=\"${PLATFORM_URL}\" --set studio.entityStoreUrl=\"${PLATFORM_URL}\" --set studio.nimProxyUrl=\"${NIM_PROXY_URL:-$PLATFORM_URL}\" --set studio.dataStoreUrl=\"${DATA_STORE_URL:-$PLATFORM_URL}\" --set ingress.hosts.default.name=\"${INGRESS_HOST:-}\" --set ingress.hosts.nimProxy.name=\"${NIM_PROXY_HOST:-nim.local}\" --set ingress.hosts.dataStore.name=\"${DATA_STORE_HOST:-data-store.local}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
     "post_commands": [
+      "echo '🔧 Patching ingress with CORS annotations...' && kubectl annotate ingress -n nemo nemo-microservices-helm-chart nginx.ingress.kubernetes.io/enable-cors='true' nginx.ingress.kubernetes.io/cors-allow-origin='*' nginx.ingress.kubernetes.io/cors-allow-methods='GET, POST, PUT, DELETE, PATCH, OPTIONS' nginx.ingress.kubernetes.io/cors-allow-headers='DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Auth-Token,Accept' nginx.ingress.kubernetes.io/cors-allow-credentials='true' --overwrite || echo '   (annotation failed, CORS may need manual config)'",
       "bash nemo-proxy/configure-proxy.sh"
     ],
     "success_check": "kubectl get pods -n nemo --no-headers | grep -v Completed | grep -E 'Running|Pending' | head -1",
