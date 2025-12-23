@@ -9,6 +9,7 @@
     "namespace": "nemo",
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
+      "echo '🌋 Installing Volcano scheduler...' && kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml 2>/dev/null || echo '   (Volcano may already be installed)'",
       "rm -rf nemo-microservices-helm-chart nemo-microservices-helm-chart-*.tgz",
       "helm fetch https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-${VERSION}.tgz --username='$oauthtoken' --password=\"${NGC_API_KEY}\"",
       "tar -xzf nemo-microservices-helm-chart-${VERSION}.tgz",
@@ -16,7 +17,7 @@
       "kubectl create secret docker-registry nvcrimagepullsecret --docker-server=nvcr.io --docker-username='$oauthtoken' --docker-password=\"${NGC_API_KEY}\" -n nemo --dry-run=client -o yaml | kubectl apply -f -",
       "kubectl create secret generic ngc-api --from-literal=NGC_API_KEY=\"${NGC_API_KEY}\" -n nemo --dry-run=client -o yaml | kubectl apply -f -"
     ],
-    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --namespace nemo",
+    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --namespace nemo",
     "log_sources": [
       {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
       {"label": "Services", "command": "kubectl get svc -n nemo"}
@@ -31,11 +32,12 @@
     "namespace": "nemo",
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
+      "echo '🌋 Installing Volcano scheduler...' && kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml 2>/dev/null || echo '   (Volcano may already be installed)'",
       "echo '🔑 Creating namespace and NGC secrets...' && kubectl create namespace nemo --dry-run=client -o yaml | kubectl apply -f -",
       "kubectl create secret docker-registry nvcrimagepullsecret --docker-server=nvcr.io --docker-username='$oauthtoken' --docker-password=\"${NGC_API_KEY}\" -n nemo --dry-run=client -o yaml | kubectl apply -f -",
       "kubectl create secret generic ngc-api --from-literal=NGC_API_KEY=\"${NGC_API_KEY}\" -n nemo --dry-run=client -o yaml | kubectl apply -f -"
     ],
-    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --namespace nemo",
+    "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --namespace nemo",
     "log_sources": [
       {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
       {"label": "Services", "command": "kubectl get svc -n nemo"}
