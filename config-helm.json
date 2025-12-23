@@ -1,4 +1,8 @@
 {
+  "_meta": {
+    "launcher_path": "/interlude",
+    "project_name": "Interlude"
+  },
   "helm-nemo": {
     "description": "NeMo Microservices Helm Chart (with auto-fetch)",
     "versions": ["25.12.0", "25.10.0"],
@@ -15,6 +19,16 @@
       "tar -xzf nemo-microservices-helm-chart-${VERSION}.tgz"
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
+    "post_commands": [
+      "bash nemo-proxy/configure-proxy.sh"
+    ],
+    "success_check": "kubectl get pods -n nemo --no-headers | grep -v Completed | grep -E 'Running|Pending' | head -1",
+    "uninstall_commands": [
+      "echo '🗑️ Uninstalling NeMo Microservices...'",
+      "helm uninstall nemo-microservices --namespace nemo || true",
+      "kubectl delete namespace nemo --timeout=60s || true",
+      "echo '✓ Uninstall complete'"
+    ],
     "log_sources": [
       {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
       {"label": "Services", "command": "kubectl get svc -n nemo"}
@@ -32,6 +46,16 @@
       "echo '🌋 Installing Volcano scheduler...' && kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml 2>/dev/null || echo '   (Volcano may already be installed)'"
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
+    "post_commands": [
+      "bash nemo-proxy/configure-proxy.sh"
+    ],
+    "success_check": "kubectl get pods -n nemo --no-headers | grep -v Completed | grep -E 'Running|Pending' | head -1",
+    "uninstall_commands": [
+      "echo '🗑️ Uninstalling NeMo Microservices...'",
+      "helm uninstall nemo-microservices --namespace nemo || true",
+      "kubectl delete namespace nemo --timeout=90s || true",
+      "echo '✓ Uninstall complete'"
+    ],
     "log_sources": [
       {"label": "Pod Status", "command": "kubectl get pods -n nemo -o wide"},
       {"label": "Services", "command": "kubectl get svc -n nemo"}

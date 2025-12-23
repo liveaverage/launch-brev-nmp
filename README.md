@@ -30,6 +30,12 @@ docker build -t deployment-app .
 
 **CRITICAL**: When orchestrating Kubernetes/Helm deployments from a container to a local cluster (kind, k3s, minikube, Docker Desktop), network access is a key consideration. Choose the appropriate method:
 
+### Option 0: One-shot installation for Kubernetes
+
+```bash
+INSTALL_DIR=/opt/nemo-launcher curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
+```
+
 ### Option 1: Native/Host Mode (RECOMMENDED for Local K8s)
 
 Run the app directly on your host without containerization. This avoids all networking issues.

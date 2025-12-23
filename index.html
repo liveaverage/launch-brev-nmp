@@ -433,6 +433,89 @@
             font-size: 12px;
             color: rgba(255, 255, 255, 0.4);
         }
+        
+        /* History mode styles */
+        .history-banner {
+            background: linear-gradient(135deg, rgba(118, 185, 0, 0.15), rgba(118, 185, 0, 0.05));
+            border: 1px solid rgba(118, 185, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: none;
+        }
+        
+        .history-banner.show {
+            display: block;
+        }
+        
+        .history-banner h3 {
+            color: #76b900;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .history-banner p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            margin: 4px 0;
+        }
+        
+        .history-banner .timestamp {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+        
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            background: rgba(118, 185, 0, 0.3) !important;
+        }
+        
+        .btn-secondary {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 12px;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+        
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .go-to-app-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: #76b900;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        
+        .go-to-app-btn:hover {
+            background: #8fd400;
+        }
     </style>
 </head>
 <body>
@@ -445,6 +528,18 @@
 
         <div class="form-container">
             <h1 id="heading">Deploy</h1>
+            
+            <!-- History mode banner -->
+            <div class="history-banner" id="historyBanner">
+                <h3>✓ Deployment Active</h3>
+                <p id="historyVersion">Version: --</p>
+                <p class="timestamp" id="historyTimestamp">Deployed: --</p>
+            </div>
+            
+            <!-- Go to app button (shown in history mode) -->
+            <a href="/" class="go-to-app-btn" id="goToAppBtn" style="display: none;">
+                Open Application →
+            </a>
 
             <form id="deployForm">
                 <div class="form-group">
@@ -464,11 +559,11 @@
                     <select id="version" name="version"></select>
                 </div>
 
-                <div class="checkbox-wrapper">
+                <div class="checkbox-wrapper" id="dryRunWrapper" style="display: none;">
                     <input type="checkbox" id="dryRun" name="dryRun">
                     <label for="dryRun" class="checkbox-label">Dry Run (Test Mode)</label>
                 </div>
-                <div class="checkbox-description">
+                <div class="checkbox-description" id="dryRunDescription" style="display: none;">
                     Preview commands without executing
                 </div>
 
@@ -476,6 +571,11 @@
                     🤙 Let it rip
                 </button>
             </form>
+            
+            <!-- Uninstall button (shown in history mode) -->
+            <button type="button" class="btn-secondary" id="uninstallBtn" style="display: none;">
+                🗑️ Uninstall
+            </button>
 
             <div class="message" id="message"></div>
             <div class="stream-output" id="streamOutput"></div>
@@ -513,9 +613,15 @@
         const helpBody = document.getElementById('helpBody');
         const helpTitle = document.getElementById('helpTitle');
         const logo = document.getElementById('logo');
+        const historyBanner = document.getElementById('historyBanner');
+        const historyVersion = document.getElementById('historyVersion');
+        const historyTimestamp = document.getElementById('historyTimestamp');
+        const goToAppBtn = document.getElementById('goToAppBtn');
+        const uninstallBtn = document.getElementById('uninstallBtn');
 
         let config = {};
         let activeEventSource = null;
+        let historyMode = false;
 
         // Handle logo loading error
         logo.onerror = function() {
@@ -533,6 +639,11 @@
                 if (config.heading) {
                     document.getElementById('heading').textContent = config.heading;
                 }
+                
+                // Set page title
+                if (config.project_name) {
+                    document.title = config.project_name;
+                }
 
                 if (config.show_version_selector && config.versions && config.versions.length > 0) {
                     versionGroup.classList.add('show');
@@ -547,9 +658,72 @@
                         versionSelect.appendChild(opt);
                     });
                 }
+
+                // Show/hide dry run option based on config (default: hidden)
+                if (config.show_dry_run) {
+                    document.getElementById('dryRunWrapper').style.display = 'flex';
+                    document.getElementById('dryRunDescription').style.display = 'block';
+                }
+                
+                // Check if already deployed (history mode)
+                if (config.deployed) {
+                    enterHistoryMode();
+                }
             } catch (error) {
                 console.error('Failed to load config:', error);
             }
+        }
+        
+        // Enter history mode (deployment already exists)
+        function enterHistoryMode() {
+            historyMode = true;
+            
+            // Show history banner
+            historyBanner.classList.add('show');
+            if (config.deployed_version) {
+                historyVersion.textContent = `Version: ${config.deployed_version}`;
+            }
+            if (config.deployed_at) {
+                const date = new Date(config.deployed_at);
+                historyTimestamp.textContent = `Deployed: ${date.toLocaleString()}`;
+            }
+            
+            // Update heading
+            document.getElementById('heading').textContent = 'Deployment Status';
+            
+            // Show "Go to App" button
+            goToAppBtn.style.display = 'block';
+            
+            // Disable deploy form
+            submitBtn.classList.add('btn-disabled');
+            submitBtn.textContent = '✓ Already Deployed';
+            submitBtn.disabled = true;
+            document.getElementById('apiKey').disabled = true;
+            document.getElementById('apiKey').placeholder = 'Deployment already active';
+            versionSelect.disabled = true;
+            
+            // Show uninstall button if available
+            if (config.has_uninstall) {
+                uninstallBtn.style.display = 'block';
+            }
+        }
+        
+        // Exit history mode (after uninstall)
+        function exitHistoryMode() {
+            historyMode = false;
+            
+            historyBanner.classList.remove('show');
+            goToAppBtn.style.display = 'none';
+            uninstallBtn.style.display = 'none';
+            
+            document.getElementById('heading').textContent = config.heading || 'Deploy';
+            
+            submitBtn.classList.remove('btn-disabled');
+            submitBtn.textContent = '🤙 Let it rip';
+            submitBtn.disabled = false;
+            document.getElementById('apiKey').disabled = false;
+            document.getElementById('apiKey').placeholder = 'nvapi-...';
+            versionSelect.disabled = false;
         }
 
         // Help modal
@@ -606,10 +780,52 @@
                 helpModal.classList.remove('show');
             }
         });
+        
+        // Uninstall button
+        uninstallBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to uninstall? This will remove the deployed application.')) {
+                return;
+            }
+            
+            uninstallBtn.disabled = true;
+            uninstallBtn.textContent = 'Uninstalling...';
+            message.classList.remove('show');
+            streamOutput.classList.remove('show');
+            
+            try {
+                const response = await fetch('/uninstall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Uninstall completed successfully!', 'success');
+                    exitHistoryMode();
+                    // Reload config to update state
+                    await loadConfig();
+                } else {
+                    showMessage(data.error || 'Uninstall failed', 'error');
+                    uninstallBtn.disabled = false;
+                    uninstallBtn.textContent = '🗑️ Uninstall';
+                }
+            } catch (error) {
+                showMessage('Uninstall failed: ' + error.message, 'error');
+                uninstallBtn.disabled = false;
+                uninstallBtn.textContent = '🗑️ Uninstall';
+            }
+        });
 
         // Form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Block submission in history mode
+            if (historyMode) {
+                showMessage('Deployment already active. Uninstall first to redeploy.', 'error');
+                return;
+            }
 
             const apiKey = document.getElementById('apiKey').value;
             const version = versionSelect.value;
@@ -800,8 +1016,93 @@
             dryRunOutput.classList.add('show');
         }
 
+        // Check if deployment is running and reconnect to logs
+        async function checkDeploymentStatus() {
+            try {
+                const response = await fetch('/deploy/status');
+                const status = await response.json();
+                
+                if (status.is_running) {
+                    // Deployment in progress - reconnect to logs
+                    showMessage('Deployment in progress - reconnecting to logs...', 'success');
+                    streamOutput.classList.add('show');
+                    streamOutput.innerHTML = '';
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = 'Deploying<span class="spinner"></span>';
+                    
+                    reconnectToLogs();
+                } else if (status.status !== 'idle' && status.log_count > 0) {
+                    // Previous deployment exists - offer to view logs
+                    const statusText = status.status === 'success' ? '✓ Previous deployment succeeded' :
+                                      status.status === 'failed' ? '✗ Previous deployment failed' :
+                                      status.status === 'timeout' ? '⏱ Previous deployment timed out' :
+                                      'Previous deployment status: ' + status.status;
+                    showMessage(statusText + ' - click to view logs', status.status === 'success' ? 'success' : 'error');
+                    message.style.cursor = 'pointer';
+                    message.onclick = () => {
+                        message.onclick = null;
+                        message.style.cursor = 'default';
+                        reconnectToLogs();
+                    };
+                }
+            } catch (error) {
+                console.log('Status check failed:', error);
+            }
+        }
+
+        function reconnectToLogs() {
+            streamOutput.classList.add('show');
+            streamOutput.innerHTML = '';
+            
+            fetch('/deploy/logs').then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function processStream() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '🤙 Let it rip';
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.type === 'stream_end') {
+                                        if (data.status === 'success') {
+                                            showMessage('Deployment completed successfully!', 'success');
+                                        } else if (data.status === 'failed') {
+                                            showMessage('Deployment failed', 'error');
+                                        }
+                                    } else {
+                                        appendStreamLine(data);
+                                    }
+                                } catch (e) {}
+                            }
+                        });
+
+                        streamOutput.scrollTop = streamOutput.scrollHeight;
+                        processStream();
+                    }).catch(error => {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '🤙 Let it rip';
+                    });
+                }
+
+                processStream();
+            });
+        }
+
         // Initialize
         loadConfig();
+        checkDeploymentStatus();
     </script>
 </body>
 </html>

@@ -37,6 +37,11 @@
       "content": "**Common Issues:**\n\n• **Authentication Failed** - Verify your NGC API key is valid and has access to nemo-microservices\n• **Chart Not Found** - Ensure you have network access to helm.ngc.nvidia.com\n• **Pod Pending** - Check if your cluster has sufficient resources\n• **ImagePullBackOff** - Your NGC key may not have access to required images\n• **Connection Refused** - For local K8s, use native mode or host network mode\n\nFor detailed troubleshooting, check the deployment logs and consult the NeMo Microservices documentation."
     },
     {
+      "title": "External Access",
+      "icon": "🌐",
+      "content": "**Automatic Proxy:** After deployment, a reverse proxy starts on port `8080`. Point your tunnel there.\n\n**How it works:** NeMo Studio calls `http://nemo.test:3000/v1/...` which browsers can't resolve. The proxy rewrites these to relative paths (`/v1/...`) that work with any tunnel URL.\n\n**Prerequisites:** Enable ingress in your cluster:\n• microk8s: `microk8s enable ingress`\n• k3s: ingress is enabled by default\n• Other: install nginx-ingress controller\n\n**Architecture:**\n`Browser → Tunnel → nginx (:8080) → K8s Ingress → NeMo Services`\n\n**Manual Control:**\n• Start: `bash nemo-proxy/start-proxy.sh`\n• Custom backend: `BACKEND=10.0.0.5:80 bash nemo-proxy/start-proxy.sh`\n• Stop: `docker stop nemo-proxy`"
+    },
+    {
       "title": "Security Note",
       "icon": "🔒",
       "content": "Your NGC API key is:\n• Passed as an environment variable to the deployment process\n• NOT stored permanently by this application\n• Used to authenticate with NGC registries\n• Configured as a Kubernetes secret (for Helm) or environment variable (for Docker Compose)\n\nNever share your API key or commit it to version control."

@@ -11,3 +11,11 @@ __pycache__
 .Python
 env/
 venv/
+.interlude-data/
+nemo-microservices-helm-chart/
+nemo-microservices-quickstart_*/
+nemo-microservices-helm-chart-*.tgz
+docs/
+*.sh
+!entrypoint.sh
+!nemo-proxy/*.sh
