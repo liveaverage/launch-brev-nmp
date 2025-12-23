@@ -10,6 +10,11 @@ FLASK_BACKEND="${FLASK_BACKEND:-127.0.0.1:8080}"
 HTTP_PORT="${HTTP_PORT:-8888}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
+echo "━━━ configure-proxy.sh starting ━━━"
+echo "   NGINX_CONF=$NGINX_CONF"
+echo "   HTTP_PORT=$HTTP_PORT"
+echo "   LAUNCHER_PATH=$LAUNCHER_PATH"
+echo ""
 echo "🔍 Discovering K8s backend..."
 
 # Allow manual override
@@ -142,16 +147,24 @@ http {
 NGINX
 
 echo "🔄 Reloading nginx..."
-if pgrep -x nginx > /dev/null; then
-    nginx -s reload 2>/dev/null && echo "   ✓ nginx reloaded" || echo "   ⚠️ reload failed"
+# Test config first
+if nginx -t -c "$NGINX_CONF" 2>&1; then
+    echo "   ✓ nginx config valid"
+    # Send reload signal to the master process
+    if [ -f /tmp/nginx.pid ]; then
+        kill -HUP $(cat /tmp/nginx.pid) && echo "   ✓ nginx reloaded (HUP signal)" || echo "   ⚠️ reload failed"
+    elif pgrep -x nginx > /dev/null; then
+        nginx -s reload -c "$NGINX_CONF" 2>/dev/null && echo "   ✓ nginx reloaded" || echo "   ⚠️ reload failed"
+    else
+        echo "   nginx not running, config ready for next start"
+    fi
 else
-    echo "   nginx not running, config ready for next start"
+    echo "   ❌ nginx config invalid!"
 fi
 
 echo ""
 echo "✅ Reverse proxy configured (post-deployment mode)"
-echo "   /              → NeMo Studio ($BACKEND)"
-echo "   $LAUNCHER_PATH → Deployment UI ($FLASK_BACKEND)"
+echo "   http://localhost:$HTTP_PORT/              → NeMo Studio ($BACKEND)"
+echo "   http://localhost:$HTTP_PORT$LAUNCHER_PATH → Deployment UI ($FLASK_BACKEND)"
 echo ""
-echo "Access NeMo Studio at your tunnel URL"
-echo "Access deployment history at: <tunnel-url>$LAUNCHER_PATH"
+echo "━━━ configure-proxy.sh complete ━━━"

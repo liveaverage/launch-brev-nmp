@@ -622,6 +622,25 @@
         let config = {};
         let activeEventSource = null;
         let historyMode = false;
+        
+        // Detect base path for API calls (handles /interlude or custom subpath)
+        function getBasePath() {
+            const path = window.location.pathname;
+            // Match common launcher paths - extend as needed
+            const match = path.match(/^(\/interlude|\/deploy|\/launcher|\/admin|\/\_launcher)/);
+            if (match) {
+                return match[1];
+            }
+            return '';
+        }
+        let basePath = getBasePath();
+        
+        // Helper for API calls that respects the base path
+        function apiUrl(endpoint) {
+            return basePath + endpoint;
+        }
+        
+        console.log('Interlude base path:', basePath || '(root)');
 
         // Handle logo loading error
         logo.onerror = function() {
@@ -632,7 +651,7 @@
         // Load configuration
         async function loadConfig() {
             try {
-                const response = await fetch('/config');
+                const response = await fetch(apiUrl('/config'));
                 config = await response.json();
 
                 // Set heading from config
@@ -730,7 +749,7 @@
         helpBtn.addEventListener('click', async () => {
             helpModal.classList.add('show');
             try {
-                const response = await fetch('/help');
+                const response = await fetch(apiUrl('/help'));
                 const helpData = await response.json();
                 helpTitle.textContent = helpData.title || 'Help';
                 helpBody.innerHTML = '';
@@ -793,7 +812,7 @@
             streamOutput.classList.remove('show');
             
             try {
-                const response = await fetch('/uninstall', {
+                const response = await fetch(apiUrl('/uninstall'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -847,7 +866,7 @@
             if (dryRun) {
                 // Dry run uses the regular endpoint for structured response
                 try {
-                    const response = await fetch('/deploy', {
+                    const response = await fetch(apiUrl('/deploy'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ apiKey, version, dryRun: true })
@@ -876,7 +895,7 @@
 
         function deployWithStreaming(apiKey, version) {
             // Use fetch with ReadableStream for SSE since we need to POST
-            fetch('/deploy/stream', {
+            fetch(apiUrl('/deploy/stream'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ apiKey, version })
@@ -1019,7 +1038,7 @@
         // Check if deployment is running and reconnect to logs
         async function checkDeploymentStatus() {
             try {
-                const response = await fetch('/deploy/status');
+                const response = await fetch(apiUrl('/deploy/status'));
                 const status = await response.json();
                 
                 if (status.is_running) {
@@ -1054,7 +1073,7 @@
             streamOutput.classList.add('show');
             streamOutput.innerHTML = '';
             
-            fetch('/deploy/logs').then(response => {
+            fetch(apiUrl('/deploy/logs')).then(response => {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
