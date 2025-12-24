@@ -671,34 +671,25 @@
         console.log('Interlude base path:', basePath || '(root)');
         
         // Derive NeMo service URLs from current hostname
-        // Pattern: <prefix>-<base> where base is everything after first hyphen
-        // e.g., studio-lccpkmz8f.brevlab.com → base = lccpkmz8f.brevlab.com
+        // Single-origin mode: all URLs point to the same origin
+        // This avoids CORS issues with Cloudflare Access blocking OPTIONS preflight
         function getNemoUrls() {
+            const origin = window.location.origin;
             const hostname = window.location.hostname;
-            const protocol = window.location.protocol;
             
-            // Extract base: everything after the first hyphen
-            const firstHyphen = hostname.indexOf('-');
-            let base;
-            if (firstHyphen > 0) {
-                base = hostname.substring(firstHyphen + 1);
-            } else {
-                // No hyphen found, use full hostname as base
-                base = hostname;
-            }
-            
-            // Construct the three required URLs
+            // Single-origin: all services accessed via same hostname
+            // nginx does path-based routing to the correct backend
             const urls = {
-                platformUrl: `${protocol}//studio-${base}`,
-                nimProxyUrl: `${protocol}//nim-${base}`,
-                dataStoreUrl: `${protocol}//data-${base}`,
-                // Also provide the ingress hostnames (without protocol)
-                ingressHost: `studio-${base}`,
-                nimProxyHost: `nim-${base}`,
-                dataStoreHost: `data-${base}`
+                platformUrl: origin,
+                nimProxyUrl: origin,
+                dataStoreUrl: origin,
+                // Ingress hosts all the same (for K8s ingress config)
+                ingressHost: hostname,
+                nimProxyHost: hostname,
+                dataStoreHost: hostname
             };
             
-            console.log('NeMo URLs derived from hostname:', urls);
+            console.log('NeMo URLs (single-origin mode):', urls);
             return urls;
         }
 
