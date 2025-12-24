@@ -32,9 +32,9 @@ NIM_BACKEND=$(get_svc_endpoint "nemo-nim-proxy" "8000")
 [ -z "$NIM_BACKEND" ] && NIM_BACKEND=$(get_svc_endpoint "nim-proxy" "8000")
 [ -z "$NIM_BACKEND" ] && NIM_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-nim-proxy" "8000")
 
-DATA_BACKEND=$(get_svc_endpoint "nemo-data-store" "8000")
-[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "data-store" "8000")
-[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-data-store" "8000")
+DATA_BACKEND=$(get_svc_endpoint "nemo-data-store" "3000")
+[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "data-store" "3000")
+[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-data-store" "3000")
 
 NEMO_BACKEND=$(get_svc_endpoint "nemo-entity-store" "8000")
 [ -z "$NEMO_BACKEND" ] && NEMO_BACKEND=$(get_svc_endpoint "entity-store" "8000")
