@@ -27,22 +27,27 @@ get_svc_endpoint() {
     fi
 }
 
-# Find services (try common naming patterns)
-NIM_BACKEND=$(get_svc_endpoint "nemo-nim-proxy" "8000")
-[ -z "$NIM_BACKEND" ] && NIM_BACKEND=$(get_svc_endpoint "nim-proxy" "8000")
-[ -z "$NIM_BACKEND" ] && NIM_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-nim-proxy" "8000")
+# Service discovery based on NVIDIA documentation:
+# https://docs.nvidia.com/nemo/microservices/latest/set-up/deploy-as-platform/ingress-setup.html
 
-DATA_BACKEND=$(get_svc_endpoint "nemo-data-store" "3000")
-[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "data-store" "3000")
-[ -z "$DATA_BACKEND" ] && DATA_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-data-store" "3000")
+# NIM Proxy (nim.test) - LLM inference: /v1/completions, /v1/chat, /v1/embeddings, /v1/models
+NIM_PROXY=$(get_svc_endpoint "nemo-nim-proxy" "8000")
 
-NEMO_BACKEND=$(get_svc_endpoint "nemo-entity-store" "8000")
-[ -z "$NEMO_BACKEND" ] && NEMO_BACKEND=$(get_svc_endpoint "entity-store" "8000")
-[ -z "$NEMO_BACKEND" ] && NEMO_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-entity-store" "8000")
+# Data Store (datastore.test) - HuggingFace API: /v1/hf/*
+DATA_STORE=$(get_svc_endpoint "nemo-data-store" "3000")
 
-STUDIO_BACKEND=$(get_svc_endpoint "nemo-studio" "3000")
-[ -z "$STUDIO_BACKEND" ] && STUDIO_BACKEND=$(get_svc_endpoint "studio" "3000")
-[ -z "$STUDIO_BACKEND" ] && STUDIO_BACKEND=$(get_svc_endpoint "nemo-microservices-helm-chart-studio" "3000")
+# Default host services (nemo.test) - all documented paths:
+ENTITY_STORE=$(get_svc_endpoint "nemo-entity-store" "8000")
+CUSTOMIZER=$(get_svc_endpoint "nemo-customizer" "8000")
+EVALUATOR=$(get_svc_endpoint "nemo-evaluator" "7331")
+GUARDRAILS=$(get_svc_endpoint "nemo-guardrails" "7331")
+DEPLOYMENT_MGMT=$(get_svc_endpoint "nemo-deployment-management" "8000")
+DATA_DESIGNER=$(get_svc_endpoint "nemo-data-designer" "8000")
+AUDITOR=$(get_svc_endpoint "nemo-auditor" "5000")
+SAFE_SYNTHESIZER=$(get_svc_endpoint "nemo-safe-synthesizer" "8000")
+CORE_API=$(get_svc_endpoint "nemo-core-api" "8000")
+INTAKE=$(get_svc_endpoint "nemo-intake" "8000")
+STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 
 # Fallback to ingress if services not found directly
 INGRESS_BACKEND="127.0.0.1:80"
@@ -53,16 +58,37 @@ elif kubectl get svc -n ingress-nginx ingress-nginx-controller &>/dev/null; then
 fi
 
 # Use ingress as fallback for any missing backends
-[ -z "$NIM_BACKEND" ] && NIM_BACKEND="$INGRESS_BACKEND"
-[ -z "$DATA_BACKEND" ] && DATA_BACKEND="$INGRESS_BACKEND"
-[ -z "$NEMO_BACKEND" ] && NEMO_BACKEND="$INGRESS_BACKEND"
-[ -z "$STUDIO_BACKEND" ] && STUDIO_BACKEND="$INGRESS_BACKEND"
+[ -z "$NIM_PROXY" ] && NIM_PROXY="$INGRESS_BACKEND"
+[ -z "$DATA_STORE" ] && DATA_STORE="$INGRESS_BACKEND"
+[ -z "$ENTITY_STORE" ] && ENTITY_STORE="$INGRESS_BACKEND"
+[ -z "$CUSTOMIZER" ] && CUSTOMIZER="$INGRESS_BACKEND"
+[ -z "$EVALUATOR" ] && EVALUATOR="$INGRESS_BACKEND"
+[ -z "$GUARDRAILS" ] && GUARDRAILS="$INGRESS_BACKEND"
+[ -z "$DEPLOYMENT_MGMT" ] && DEPLOYMENT_MGMT="$INGRESS_BACKEND"
+[ -z "$DATA_DESIGNER" ] && DATA_DESIGNER="$INGRESS_BACKEND"
+[ -z "$AUDITOR" ] && AUDITOR="$INGRESS_BACKEND"
+[ -z "$SAFE_SYNTHESIZER" ] && SAFE_SYNTHESIZER="$INGRESS_BACKEND"
+[ -z "$CORE_API" ] && CORE_API="$INGRESS_BACKEND"
+[ -z "$INTAKE" ] && INTAKE="$INGRESS_BACKEND"
+[ -z "$STUDIO" ] && STUDIO="$INGRESS_BACKEND"
 
-echo "   NIM Proxy:   $NIM_BACKEND (completions, chat, embeddings, classify)"
-echo "   Data Store:  $DATA_BACKEND (/v1/hf/*)"
-echo "   Entity Store: $NEMO_BACKEND (/v1/* other)"
-echo "   Studio:      $STUDIO_BACKEND (/studio/*)"
-echo "   Ingress:     $INGRESS_BACKEND (fallback)"
+echo ""
+echo "   Discovered services (per NVIDIA docs):"
+echo "   ─────────────────────────────────────────"
+echo "   NIM Proxy:       $NIM_PROXY"
+echo "   Data Store:      $DATA_STORE"
+echo "   Entity Store:    $ENTITY_STORE"
+echo "   Customizer:      $CUSTOMIZER"
+echo "   Evaluator:       $EVALUATOR"
+echo "   Guardrails:      $GUARDRAILS"
+echo "   Deployment Mgmt: $DEPLOYMENT_MGMT"
+echo "   Data Designer:   $DATA_DESIGNER"
+echo "   Auditor:         $AUDITOR"
+echo "   Safe Synthesizer:$SAFE_SYNTHESIZER"
+echo "   Core API:        $CORE_API"
+echo "   Intake:          $INTAKE"
+echo "   Studio:          $STUDIO"
+echo "   Ingress:         $INGRESS_BACKEND (fallback)"
 
 echo "🔧 Writing nginx.conf (post-deployment mode with path-based routing)..."
 
@@ -98,26 +124,28 @@ http {
         server $FLASK_BACKEND;
     }
     
-    # NeMo service backends
-    upstream nim_backend {
-        server $NIM_BACKEND;
-    }
+    # NeMo service backends (per NVIDIA ingress-setup.html documentation)
     
-    upstream data_backend {
-        server $DATA_BACKEND;
-    }
+    # NIM Proxy host services
+    upstream nim_proxy { server $NIM_PROXY; }
     
-    upstream nemo_backend {
-        server $NEMO_BACKEND;
-    }
+    # Data Store host services  
+    upstream data_store { server $DATA_STORE; }
     
-    upstream studio_backend {
-        server $STUDIO_BACKEND;
-    }
+    # Default host services
+    upstream entity_store { server $ENTITY_STORE; }
+    upstream customizer { server $CUSTOMIZER; }
+    upstream evaluator { server $EVALUATOR; }
+    upstream guardrails { server $GUARDRAILS; }
+    upstream deployment_mgmt { server $DEPLOYMENT_MGMT; }
+    upstream data_designer { server $DATA_DESIGNER; }
+    upstream auditor { server $AUDITOR; }
+    upstream safe_synthesizer { server $SAFE_SYNTHESIZER; }
+    upstream core_api { server $CORE_API; }
+    upstream intake { server $INTAKE; }
+    upstream studio { server $STUDIO; }
     
-    upstream ingress_backend {
-        server $INGRESS_BACKEND;
-    }
+    upstream ingress_fallback { server $INGRESS_BACKEND; }
     
     server {
         listen $HTTP_PORT;
@@ -181,12 +209,14 @@ http {
         }
         
         # ═══════════════════════════════════════════════════════════════
-        # PATH-BASED ROUTING (Single-origin mode - no CORS needed!)
+        # PATH-BASED ROUTING per NVIDIA ingress-setup.html documentation
+        # https://docs.nvidia.com/nemo/microservices/latest/set-up/deploy-as-platform/ingress-setup.html
+        # Single-origin mode - no CORS needed!
         # ═══════════════════════════════════════════════════════════════
         
-        # NIM Proxy: LLM inference endpoints
-        location ~ ^/v1/(completions|chat|embeddings|classify|ranking) {
-            proxy_pass http://nim_backend;
+        # ─── NIM Proxy routes (nim.test equivalent) ───
+        location ~ ^/v1/(completions|chat|embeddings) {
+            proxy_pass http://nim_proxy;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -198,9 +228,9 @@ http {
             proxy_buffering off;
         }
         
-        # Data Store: HuggingFace-compatible file/dataset API
+        # ─── Data Store routes (datastore.test equivalent) ───
         location ~ ^/v1/hf {
-            proxy_pass http://data_backend;
+            proxy_pass http://data_store;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -212,9 +242,11 @@ http {
             proxy_buffering off;
         }
         
-        # Entity Store / NeMo Platform: All other /v1/* APIs
-        location ~ ^/v1/ {
-            proxy_pass http://nemo_backend;
+        # ─── Default host routes (nemo.test equivalent) ───
+        
+        # Entity Store: /v1/namespaces, /v1/projects, /v1/datasets, /v1/repos, /v1/models
+        location ~ ^/v1/(namespaces|projects|datasets|repos|models) {
+            proxy_pass http://entity_store;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -226,9 +258,148 @@ http {
             proxy_buffering off;
         }
         
-        # NeMo Studio frontend
+        # Customizer: /v1/customization
+        location /v1/customization {
+            proxy_pass http://customizer;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Evaluator: /v1/evaluation, /v2/evaluation
+        location ~ ^/(v1|v2)/evaluation {
+            proxy_pass http://evaluator;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Guardrails: /v1/guardrail
+        location /v1/guardrail {
+            proxy_pass http://guardrails;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Deployment Management: /v1/deployment
+        location /v1/deployment {
+            proxy_pass http://deployment_mgmt;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Data Designer: /v1/data-designer
+        location /v1/data-designer {
+            proxy_pass http://data_designer;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Auditor: /v1beta1/audit
+        location /v1beta1/audit {
+            proxy_pass http://auditor;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Safe Synthesizer: /v1beta1/safe-synthesizer
+        location /v1beta1/safe-synthesizer {
+            proxy_pass http://safe_synthesizer;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Core API: /v1/jobs, /v2/inference/gateway, /v2/inference, /v2/models
+        location ~ ^/v1/jobs {
+            proxy_pass http://core_api;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        location ~ ^/v2/(inference|models) {
+            proxy_pass http://core_api;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Intake: /v1/intake
+        location /v1/intake {
+            proxy_pass http://intake;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            proxy_buffering off;
+        }
+        
+        # Studio: /studio
         location /studio {
-            proxy_pass http://studio_backend;
+            proxy_pass http://studio;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -239,9 +410,9 @@ http {
             proxy_buffering off;
         }
         
-        # Fallback: Everything else goes to ingress (handles /assets, etc.)
+        # Fallback: Everything else goes to ingress
         location / {
-            proxy_pass http://ingress_backend;
+            proxy_pass http://ingress_fallback;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -277,12 +448,6 @@ fi
 echo ""
 echo "✅ Reverse proxy configured (single-origin path-based routing)"
 echo ""
-echo "   Routes (all same origin - no CORS!):"
-echo "   /v1/completions,chat,embeddings,classify → NIM Proxy ($NIM_BACKEND)"
-echo "   /v1/hf/*                                 → Data Store ($DATA_BACKEND)"
-echo "   /v1/*                                    → Entity Store ($NEMO_BACKEND)"
-echo "   /studio/*                                → NeMo Studio ($STUDIO_BACKEND)"
-echo "   $LAUNCHER_PATH/*                         → Interlude UI ($FLASK_BACKEND)"
-echo "   /*                                       → Ingress fallback ($INGRESS_BACKEND)"
+echo "   All routes same origin - no CORS needed!"
 echo ""
 echo "━━━ configure-proxy.sh complete ━━━"
