@@ -49,6 +49,10 @@ CORE_API=$(get_svc_endpoint "nemo-core-api" "8000")
 INTAKE=$(get_svc_endpoint "nemo-intake" "8000")
 STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 
+# Jupyter (optional - in separate namespace)
+JUPYTER=$(kubectl get svc -n jupyter jupyter -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
+[ -n "$JUPYTER" ] && JUPYTER="${JUPYTER}:8888"
+
 # Fallback to ingress if services not found directly
 INGRESS_BACKEND="127.0.0.1:80"
 if kubectl get daemonset -n ingress nginx-ingress-microk8s-controller &>/dev/null; then
@@ -88,6 +92,7 @@ echo "   Safe Synthesizer:$SAFE_SYNTHESIZER"
 echo "   Core API:        $CORE_API"
 echo "   Intake:          $INTAKE"
 echo "   Studio:          $STUDIO"
+echo "   Jupyter:         ${JUPYTER:-not deployed}"
 echo "   Ingress:         $INGRESS_BACKEND (fallback)"
 
 echo "🔧 Writing nginx.conf (post-deployment mode with path-based routing)..."
@@ -146,6 +151,18 @@ http {
     upstream studio { server $STUDIO; }
     
     upstream ingress_fallback { server $INGRESS_BACKEND; }
+    
+    # Jupyter (optional - deployed separately)
+NGINX
+
+# Conditionally add Jupyter upstream if deployed
+if [ -n "$JUPYTER" ]; then
+    cat >> "$NGINX_CONF" << NGINX
+    upstream jupyter { server $JUPYTER; }
+NGINX
+fi
+
+cat >> "$NGINX_CONF" << NGINX
     
     server {
         listen $HTTP_PORT;
@@ -409,6 +426,34 @@ http {
             proxy_set_header Connection "upgrade";
             proxy_buffering off;
         }
+NGINX
+
+# Conditionally add Jupyter location if deployed
+if [ -n "$JUPYTER" ]; then
+    cat >> "$NGINX_CONF" << 'JUPYTERNGINX'
+        
+        # Jupyter: /jupyter (from NVIDIA GenerativeAIExamples)
+        # Rewrites /jupyter/* to /* and proxies to Jupyter service
+        location /jupyter {
+            rewrite ^/jupyter(.*) /$1 break;
+            proxy_pass http://jupyter;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            # WebSocket support for Jupyter kernels/terminals
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 86400s;
+            proxy_read_timeout 86400s;
+            proxy_buffering off;
+        }
+JUPYTERNGINX
+fi
+
+cat >> "$NGINX_CONF" << NGINX
         
         # Fallback: Everything else goes to ingress
         location / {

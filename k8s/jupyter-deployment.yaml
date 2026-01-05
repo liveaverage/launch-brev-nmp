@@ -1,0 +1,70 @@
+# Jupyter Deployment with NVIDIA GenerativeAIExamples
+# Deploy with: kubectl apply -f https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/k8s/jupyter-deployment.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jupyter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter
+  namespace: jupyter
+  labels:
+    app: jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyter
+  template:
+    metadata:
+      labels:
+        app: jupyter
+    spec:
+      containers:
+      - name: jupyter
+        image: ghcr.io/liveaverage/pyrrhus-jupyter:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8888
+          name: http
+        env:
+        - name: GITHUB_REPO
+          value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        readinessProbe:
+          httpGet:
+            path: /api
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyter
+  namespace: jupyter
+  labels:
+    app: jupyter
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8888
+    targetPort: 8888
+    name: http
+  selector:
+    app: jupyter
+
