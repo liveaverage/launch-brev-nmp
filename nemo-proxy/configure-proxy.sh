@@ -50,7 +50,8 @@ INTAKE=$(get_svc_endpoint "nemo-intake" "8000")
 STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 
 # Jupyter (optional - in separate namespace)
-JUPYTER=$(kubectl get svc -n jupyter jupyter -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
+# Service named 'jupyter-svc' to avoid K8s JUPYTER_PORT env var collision
+JUPYTER=$(kubectl get svc -n jupyter jupyter-svc -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
 [ -n "$JUPYTER" ] && JUPYTER="${JUPYTER}:8888"
 
 # Fallback to ingress if services not found directly

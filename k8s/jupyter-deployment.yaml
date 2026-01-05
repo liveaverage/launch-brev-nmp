@@ -55,7 +55,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: jupyter
+  name: jupyter-svc
   namespace: jupyter
   labels:
     app: jupyter
