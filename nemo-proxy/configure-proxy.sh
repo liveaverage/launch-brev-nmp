@@ -101,12 +101,13 @@ echo "🔧 Writing nginx.conf (post-deployment mode with path-based routing)..."
 cat > "$NGINX_CONF" << NGINX
 # NeMo Reverse Proxy - POST-DEPLOYMENT MODE (Single-Origin Path Routing)
 # Routes:
-#   $LAUNCHER_PATH/*                    → Flask SPA (deployment history/status)
+#   /                                   → Flask SPA (deployment UI at root)
+#   $LAUNCHER_PATH/*                    → Flask SPA (alias)
 #   /v1/completions, /v1/chat, etc.     → NIM Proxy
 #   /v1/hf/*                            → Data Store
 #   /v1/*                               → Entity Store (NeMo Platform)
 #   /studio/*                           → NeMo Studio
-#   /*                                  → Fallback to ingress
+#   /jupyter/*                          → Jupyter (optional)
 # Generated: $(date -Iseconds)
 
 worker_processes auto;
@@ -197,9 +198,35 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter_once off;
         sub_filter_types text/html text/javascript application/javascript application/json text/plain *;
         
-        # Deployment UI at $LAUNCHER_PATH
+        # ─── Deployment UI (Flask SPA) ───
+        # Accessible at both root / and $LAUNCHER_PATH
+        
+        # Root path serves Flask SPA (deployment UI always accessible)
+        location = / {
+            proxy_pass http://flask_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+        
+        # Flask API endpoints at root level
+        location ~ ^/(config|help|deploy|state|uninstall|assets) {
+            proxy_pass http://flask_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            # SSE support
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 86400s;
+        }
+        
+        # Deployment UI also at $LAUNCHER_PATH (alias)
         location $LAUNCHER_PATH {
-            # Rewrite to remove the prefix for Flask
             rewrite ^$LAUNCHER_PATH(.*)\$ /\$1 break;
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
