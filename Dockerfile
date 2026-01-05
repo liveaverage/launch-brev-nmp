@@ -46,7 +46,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY index.html .
 COPY config.json .
-COPY config-helm.json .
 COPY help-content.json .
 COPY assets ./assets
 COPY nemo-proxy ./nemo-proxy
