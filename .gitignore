@@ -3,6 +3,7 @@ nemo-microservices-*
 venv/
 .venv/
 docs/
+archive/
 .interlude-data/
 __pycache__/
 *.pyc
