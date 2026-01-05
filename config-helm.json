@@ -11,6 +11,11 @@
     "env_var": "NGC_API_KEY",
     "heading": "Deploy NeMo Microservices",
     "namespace": "nemo",
+    "services": [
+      {"name": "NeMo Studio", "url": "/studio", "description": "NeMo Studio web interface"},
+      {"name": "Jupyter Notebooks", "url": "/jupyter", "description": "NVIDIA GenerativeAI examples and notebooks"},
+      {"name": "Deployment Status", "url": "/interlude", "description": "View deployment status and manage"}
+    ],
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
       "echo '🌐 Checking ingress controller...' && (kubectl get daemonset -n ingress nginx-ingress-microk8s-controller 2>/dev/null && echo '   ✓ microk8s ingress enabled') || (command -v microk8s &>/dev/null && echo '   Enabling microk8s ingress...' && microk8s enable ingress) || echo '   (non-microk8s cluster, ensure ingress-nginx is installed)'",
@@ -44,7 +49,13 @@
     "default_version": "",
     "working_dir": ".",
     "env_var": "NGC_API_KEY",
+    "heading": "Deploy NeMo (Local Chart)",
     "namespace": "nemo",
+    "services": [
+      {"name": "NeMo Studio", "url": "/studio", "description": "NeMo Studio web interface"},
+      {"name": "Jupyter Notebooks", "url": "/jupyter", "description": "NVIDIA GenerativeAI examples and notebooks"},
+      {"name": "Deployment Status", "url": "/interlude", "description": "View deployment status and manage"}
+    ],
     "pre_commands": [
       "echo '🔍 Checking Kubernetes cluster connectivity...' && kubectl cluster-info --request-timeout=10s",
       "echo '🌐 Checking ingress controller...' && (kubectl get daemonset -n ingress nginx-ingress-microk8s-controller 2>/dev/null && echo '   ✓ microk8s ingress enabled') || (command -v microk8s &>/dev/null && echo '   Enabling microk8s ingress...' && microk8s enable ingress) || echo '   (non-microk8s cluster, ensure ingress-nginx is installed)'",

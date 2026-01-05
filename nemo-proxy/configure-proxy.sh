@@ -478,16 +478,36 @@ echo "🔄 Reloading nginx..."
 # Test config first
 if nginx -t -c "$NGINX_CONF" 2>&1; then
     echo "   ✓ nginx config valid"
-    # Send reload signal to the master process
-    if [ -f /tmp/nginx.pid ]; then
-        kill -HUP $(cat /tmp/nginx.pid) && echo "   ✓ nginx reloaded (HUP signal)" || echo "   ⚠️ reload failed"
-    elif pgrep -x nginx > /dev/null; then
-        nginx -s reload -c "$NGINX_CONF" 2>/dev/null && echo "   ✓ nginx reloaded" || echo "   ⚠️ reload failed"
-    else
-        echo "   nginx not running, config ready for next start"
+    # Try multiple methods to reload nginx
+    RELOADED=false
+    
+    # Method 1: Use pid file
+    if [ -f /tmp/nginx.pid ] && [ -s /tmp/nginx.pid ]; then
+        NGINX_PID=$(cat /tmp/nginx.pid)
+        if kill -0 "$NGINX_PID" 2>/dev/null; then
+            kill -HUP "$NGINX_PID" && RELOADED=true && echo "   ✓ nginx reloaded (HUP to PID $NGINX_PID)"
+        fi
+    fi
+    
+    # Method 2: Find nginx master process
+    if [ "$RELOADED" = "false" ]; then
+        NGINX_PID=$(pgrep -o nginx 2>/dev/null || true)
+        if [ -n "$NGINX_PID" ]; then
+            kill -HUP "$NGINX_PID" && RELOADED=true && echo "   ✓ nginx reloaded (HUP to pgrep PID $NGINX_PID)"
+        fi
+    fi
+    
+    # Method 3: nginx -s reload
+    if [ "$RELOADED" = "false" ] && pgrep nginx > /dev/null; then
+        nginx -s reload -c "$NGINX_CONF" 2>/dev/null && RELOADED=true && echo "   ✓ nginx reloaded (nginx -s reload)"
+    fi
+    
+    if [ "$RELOADED" = "false" ]; then
+        echo "   ⚠️ nginx not running or reload failed, config ready for next start"
     fi
 else
     echo "   ❌ nginx config invalid!"
+    nginx -t -c "$NGINX_CONF"
 fi
 
 echo ""
