@@ -7,7 +7,7 @@ NAMESPACE="${NAMESPACE:-nemo}"
 NGINX_CONF="${NGINX_CONF:-/app/nginx.conf}"
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
 FLASK_BACKEND="${FLASK_BACKEND:-127.0.0.1:8080}"
-HTTP_PORT="${HTTP_PORT:-8888}"
+HTTP_PORT="${HTTP_PORT:-9090}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
 echo "━━━ configure-proxy.sh starting ━━━"

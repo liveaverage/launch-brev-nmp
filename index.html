@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Brev Console</title>
-    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -331,6 +331,40 @@
         .stream-line.link a:hover {
             background: #8fd400;
         }
+        
+        .stream-line.service {
+            margin: 8px 0;
+            padding: 12px 16px;
+            background: rgba(118, 185, 0, 0.1);
+            border: 1px solid rgba(118, 185, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        .stream-line.service a {
+            display: block;
+            color: #76b900;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .stream-line.service a:hover {
+            color: #8fd400;
+        }
+        
+        .stream-line.service .service-desc {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            font-weight: 400;
+            margin-top: 4px;
+        }
+
+        .stream-line.progress {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
 
         .dry-run-section {
             margin-bottom: 16px;
@@ -535,6 +569,54 @@
         .go-to-app-btn:hover {
             background: #8fd400;
         }
+        
+        /* Service links container */
+        .service-links {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(118, 185, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        .service-links h4 {
+            color: #76b900;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .service-link-item {
+            margin: 8px 0;
+            padding: 12px 16px;
+            background: rgba(118, 185, 0, 0.1);
+            border: 1px solid rgba(118, 185, 0, 0.2);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .service-link-item:hover {
+            background: rgba(118, 185, 0, 0.15);
+            border-color: rgba(118, 185, 0, 0.4);
+        }
+        
+        .service-link-item a {
+            color: #76b900;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            display: block;
+        }
+        
+        .service-link-item a:hover {
+            color: #8fd400;
+        }
+        
+        .service-link-item .service-desc {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -561,7 +643,7 @@
             <!-- History mode banner -->
             <div class="history-banner" id="historyBanner">
                 <h3>✓ Deployment Active</h3>
-                <p id="historyVersion">Version: --</p>
+                <p id="historyVersion" style="display: none;">Version: --</p>
                 <p class="timestamp" id="historyTimestamp">Deployed: --</p>
             </div>
             
@@ -569,19 +651,28 @@
             <a href="/" class="go-to-app-btn" id="goToAppBtn" style="display: none;">
                 Open Application →
             </a>
+            
+            <!-- Service links (shown after successful deployment) -->
+            <div class="service-links" id="serviceLinks" style="display: none;">
+                <h4>🔗 Available Services</h4>
+                <div id="serviceLinksContainer"></div>
+            </div>
 
             <form id="deployForm">
-                <div class="form-group">
+                <!-- Legacy single API key field (hidden by default, shown if no input_fields) -->
+                <div class="form-group" id="legacyApiKeyGroup">
                     <label for="apiKey">NGC API Key</label>
                     <input
                         type="password"
                         id="apiKey"
                         name="apiKey"
                         placeholder="nvapi-..."
-                        required
                         autocomplete="off"
                     >
                 </div>
+
+                <!-- Dynamic input fields will be injected here -->
+                <div id="dynamicInputFields"></div>
 
                 <div class="form-group version-group" id="versionGroup">
                     <label for="version">Version</label>
@@ -646,6 +737,8 @@
         const historyTimestamp = document.getElementById('historyTimestamp');
         const goToAppBtn = document.getElementById('goToAppBtn');
         const uninstallBtn = document.getElementById('uninstallBtn');
+        const serviceLinks = document.getElementById('serviceLinks');
+        const serviceLinksContainer = document.getElementById('serviceLinksContainer');
 
         let config = {};
         let activeEventSource = null;
@@ -710,6 +803,43 @@
                     document.title = config.project_name;
                 }
 
+                // Handle dynamic input fields
+                const dynamicContainer = document.getElementById('dynamicInputFields');
+                const legacyApiKeyGroup = document.getElementById('legacyApiKeyGroup');
+                
+                if (config.input_fields && config.input_fields.length > 0) {
+                    // Hide legacy API key field, show dynamic fields
+                    legacyApiKeyGroup.style.display = 'none';
+                    dynamicContainer.innerHTML = '';
+                    
+                    config.input_fields.forEach(field => {
+                        const formGroup = document.createElement('div');
+                        formGroup.className = 'form-group';
+                        
+                        const label = document.createElement('label');
+                        label.setAttribute('for', field.id);
+                        label.textContent = field.label;
+                        
+                        const input = document.createElement('input');
+                        input.type = field.type || 'text';
+                        input.id = field.id;
+                        input.name = field.id;
+                        input.placeholder = field.placeholder || '';
+                        input.autocomplete = 'off';
+                        if (field.required) {
+                            input.required = true;
+                        }
+                        
+                        formGroup.appendChild(label);
+                        formGroup.appendChild(input);
+                        dynamicContainer.appendChild(formGroup);
+                    });
+                } else {
+                    // Show legacy API key field
+                    legacyApiKeyGroup.style.display = 'block';
+                    document.getElementById('apiKey').required = true;
+                }
+
                 if (config.show_version_selector && config.versions && config.versions.length > 0) {
                     versionGroup.classList.add('show');
                     versionSelect.innerHTML = '';
@@ -734,6 +864,11 @@
                 if (config.deployed) {
                     enterHistoryMode();
                 }
+                
+                // Render service links if available
+                if (config.services && config.services.length > 0) {
+                    renderServiceLinks(config.services);
+                }
             } catch (error) {
                 console.error('Failed to load config:', error);
             }
@@ -747,6 +882,9 @@
             historyBanner.classList.add('show');
             if (config.deployed_version) {
                 historyVersion.textContent = `Version: ${config.deployed_version}`;
+                historyVersion.style.display = 'block';
+            } else {
+                historyVersion.style.display = 'none';
             }
             if (config.deployed_at) {
                 const date = new Date(config.deployed_at);
@@ -763,8 +901,21 @@
             submitBtn.classList.add('btn-disabled');
             submitBtn.textContent = '✓ Already Deployed';
             submitBtn.disabled = true;
-            document.getElementById('apiKey').disabled = true;
-            document.getElementById('apiKey').placeholder = 'Deployment already active';
+            
+            // Disable all input fields
+            if (config.input_fields && config.input_fields.length > 0) {
+                config.input_fields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input) {
+                        input.disabled = true;
+                        input.placeholder = 'Deployment already active';
+                    }
+                });
+            } else {
+                document.getElementById('apiKey').disabled = true;
+                document.getElementById('apiKey').placeholder = 'Deployment already active';
+            }
+            
             versionSelect.disabled = true;
             
             // Show uninstall button if available
@@ -780,14 +931,28 @@
             historyBanner.classList.remove('show');
             goToAppBtn.style.display = 'none';
             uninstallBtn.style.display = 'none';
+            serviceLinks.style.display = 'none';
             
             document.getElementById('heading').textContent = config.heading || 'Deploy';
             
             submitBtn.classList.remove('btn-disabled');
             submitBtn.textContent = '🤙 Let it rip';
             submitBtn.disabled = false;
-            document.getElementById('apiKey').disabled = false;
-            document.getElementById('apiKey').placeholder = 'nvapi-...';
+            
+            // Re-enable all input fields
+            if (config.input_fields && config.input_fields.length > 0) {
+                config.input_fields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input) {
+                        input.disabled = false;
+                        input.placeholder = field.placeholder || '';
+                    }
+                });
+            } else {
+                document.getElementById('apiKey').disabled = false;
+                document.getElementById('apiKey').placeholder = 'nvapi-...';
+            }
+            
             versionSelect.disabled = false;
         }
 
@@ -926,7 +1091,23 @@
                 return;
             }
 
-            const apiKey = document.getElementById('apiKey').value;
+            // Collect input data based on config
+            let apiKey = '';
+            let inputData = {};
+            
+            if (config.input_fields && config.input_fields.length > 0) {
+                // Collect dynamic input fields
+                config.input_fields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input) {
+                        inputData[field.id] = input.value;
+                    }
+                });
+            } else {
+                // Legacy single API key
+                apiKey = document.getElementById('apiKey').value;
+            }
+            
             const version = versionSelect.value;
             const dryRun = document.getElementById('dryRun').checked;
 
@@ -949,7 +1130,7 @@
                     const response = await fetch(apiUrl('/deploy'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ apiKey, version, dryRun: true, ...getNemoUrls() })
+                        body: JSON.stringify({ apiKey, inputData, version, dryRun: true, ...getNemoUrls() })
                     });
 
                     const data = await response.json();
@@ -969,16 +1150,16 @@
             } else {
                 // Real deployment uses streaming endpoint
                 streamOutput.classList.add('show');
-                deployWithStreaming(apiKey, version);
+                deployWithStreaming(apiKey, version, inputData);
             }
         });
 
-        function deployWithStreaming(apiKey, version) {
+        function deployWithStreaming(apiKey, version, inputData = {}) {
             // Use fetch with ReadableStream for SSE since we need to POST
             fetch(apiUrl('/deploy/stream'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey, version, ...getNemoUrls() })
+                body: JSON.stringify({ apiKey, inputData, version, ...getNemoUrls() })
             }).then(response => {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -1052,6 +1233,23 @@
                 case 'info':
                     prefix = 'ℹ ';
                     break;
+                case 'progress':
+                    // Docker pull progress - update in place by layer_id
+                    const layerId = data.layer_id;
+                    const existingLine = streamOutput.querySelector(`[data-layer-id="${layerId}"]`);
+                    
+                    if (existingLine) {
+                        // Update existing line
+                        existingLine.textContent = `  ${layerId} ${data.message}`;
+                    } else {
+                        // Create new line
+                        line.setAttribute('data-layer-id', layerId);
+                        line.textContent = `  ${layerId} ${data.message}`;
+                        streamOutput.appendChild(line);
+                    }
+                    // Trigger auto-scroll after progress update
+                    streamOutput.scrollTop = streamOutput.scrollHeight;
+                    return;
                 case 'pods':
                     // Clear previous pod lines before showing new status
                     const oldPods = streamOutput.querySelectorAll('.stream-line.pod');
@@ -1072,8 +1270,28 @@
                     line.appendChild(link);
                     streamOutput.appendChild(line);
                     return;
+                case 'service':
+                    // Render service link in stream and also add to persistent service links
+                    const serviceLink = document.createElement('a');
+                    serviceLink.href = data.url || '#';
+                    serviceLink.textContent = data.name || 'Service';
+                    serviceLink.target = '_blank';
+                    
+                    if (data.description) {
+                        const desc = document.createElement('div');
+                        desc.className = 'service-desc';
+                        desc.textContent = data.description;
+                        line.appendChild(serviceLink);
+                        line.appendChild(desc);
+                    } else {
+                        line.appendChild(serviceLink);
+                    }
+                    streamOutput.appendChild(line);
+                    return;
                 case 'complete':
-                    return; // Don't render 'complete' type
+                    // On completion, reload config to get services from persistent state
+                    loadConfig();
+                    return;
             }
 
             line.textContent = prefix + (data.message || '');
@@ -1122,6 +1340,43 @@
 
             dryRunOutput.innerHTML = html;
             dryRunOutput.classList.add('show');
+        }
+        
+        function renderServiceLinks(services) {
+            /**
+             * Render service links in the persistent service links container.
+             * Services should be array of {name, url, description} objects.
+             */
+            if (!services || services.length === 0) {
+                serviceLinks.style.display = 'none';
+                return;
+            }
+            
+            serviceLinksContainer.innerHTML = '';
+            
+            services.forEach(service => {
+                const item = document.createElement('div');
+                item.className = 'service-link-item';
+                
+                const link = document.createElement('a');
+                link.href = service.url || '#';
+                link.textContent = service.name || 'Service';
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                
+                item.appendChild(link);
+                
+                if (service.description) {
+                    const desc = document.createElement('div');
+                    desc.className = 'service-desc';
+                    desc.textContent = service.description;
+                    item.appendChild(desc);
+                }
+                
+                serviceLinksContainer.appendChild(item);
+            });
+            
+            serviceLinks.style.display = 'block';
         }
 
         // Check if deployment is running and reconnect to logs

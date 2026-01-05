@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y docker-ce-cli docker-compose-plugin \
     # Helm
     && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash \
-    # kubectl
-    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    # kubectl (multi-arch: amd64 or arm64)
+    && ARCH=$(dpkg --print-architecture) \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl" \
     && chmod +x kubectl \
     && mv kubectl /usr/local/bin/ \
     # nginx (has sub_filter for response body rewriting)
@@ -53,10 +54,10 @@ COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh nemo-proxy/*.sh 2>/dev/null || true
 
 # Expose ports:
-# 8888 - nginx HTTP (single entry point, avoids conflict with k8s ingress on :80)
+# 9090 - nginx HTTP (single entry point, avoids conflict with k8s ingress on :80)
 # 8443 - nginx HTTPS (single entry point)
 # Flask runs on internal :8080, not exposed
-EXPOSE 8888 8443
+EXPOSE 9090 8443
 
 # Create data directory for persistent state
 RUN mkdir -p /app/data
