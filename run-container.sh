@@ -25,7 +25,7 @@ docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
 
 echo "Starting $CONTAINER_NAME..."
 echo "  Image: $IMAGE"
-echo "  Config: $CONFIG_DIR/config-helm.json"
+echo "  Config: $CONFIG_DIR/config.json"
 echo "  Kubeconfig: $HOME/.kube"
 echo "  State: $DATA_DIR"
 
@@ -42,7 +42,7 @@ docker run -d \
   --network host \
   $ENV_FLAGS \
   -v "$HOME/.kube:/root/.kube:ro" \
-  -v "$CONFIG_DIR/config-helm.json:/app/config.json:ro" \
+  -v "$CONFIG_DIR/config.json:/app/config.json:ro" \
   -v "$CONFIG_DIR/help-content.json:/app/help-content.json:ro" \
   -v "$CONFIG_DIR/nemo-proxy:/app/nemo-proxy:ro" \
   -v "$DATA_DIR:/app/data" \
@@ -53,11 +53,12 @@ echo "✓ Container started"
 echo ""
 echo "  ┌───────────────────────────────────────────────────────┐"
 echo "  │  First launch (pre-deployment):                       │"
-echo "  │    http://localhost:8888   (deployment UI)            │"
+echo "  │    http://localhost:9090   (deployment UI)            │"
 echo "  │                                                       │"
 echo "  │  After deployment:                                    │"
-echo "  │    http://localhost:8888            (NeMo Studio)     │"
-echo "  │    http://localhost:8888/interlude  (deployment UI)   │"
+echo "  │    http://localhost:9090            (NeMo Studio)     │"
+echo "  │    http://localhost:9090/interlude  (deployment UI)   │"
+echo "  │    https://localhost:8443           (HTTPS)           │"
 echo "  └───────────────────────────────────────────────────────┘"
 echo ""
 echo "  Logs: docker logs -f $CONTAINER_NAME"

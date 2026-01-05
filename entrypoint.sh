@@ -1,5 +1,5 @@
 #!/bin/bash
-# Entrypoint: nginx (reverse proxy on :80/:443) + Flask (SPA on :8080 internal)
+# Entrypoint: nginx (reverse proxy on :9090/:8443) + Flask (SPA on :8080 internal)
 # 
 # Routing modes:
 #   PRE-DEPLOYMENT:  / → Flask SPA (enter API key, deploy)
@@ -8,14 +8,14 @@ set -e
 
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
 STATE_FILE="${STATE_FILE:-/app/data/deployment.state}"
-HTTP_PORT="${HTTP_PORT:-8888}"
+HTTP_PORT="${HTTP_PORT:-9090}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
 # Stop any existing nginx (from package install)
 pkill nginx 2>/dev/null || true
 sleep 0.5
 
-# Generate self-signed cert for :443
+# Generate self-signed cert for :8443
 if [ ! -f /app/certs/server.crt ]; then
     mkdir -p /app/certs
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -177,6 +177,7 @@ echo "║  Mode: PRE-DEPLOYMENT (first launch)                           ║"
 echo "║  Launcher:   http://localhost:$HTTP_PORT/                               ║"
 echo "║              http://localhost:$HTTP_PORT$LAUNCHER_PATH  (also works)          ║"
 fi
+echo "║  HTTPS:      https://localhost:$HTTPS_PORT/                              ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
