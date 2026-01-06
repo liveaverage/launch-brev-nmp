@@ -470,6 +470,9 @@ if [ -n "$JUPYTER" ]; then
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+            # Rewrite Location headers in responses (Jupyter redirects)
+            proxy_redirect ~^/(.*) /jupyter/$1;
+            proxy_redirect default;
             # WebSocket support for Jupyter kernels/terminals
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -477,6 +480,14 @@ if [ -n "$JUPYTER" ]; then
             proxy_send_timeout 86400s;
             proxy_read_timeout 86400s;
             proxy_buffering off;
+            # Rewrite absolute URLs in HTML/JS responses
+            sub_filter_once off;
+            sub_filter 'href="/' 'href="/jupyter/';
+            sub_filter 'src="/' 'src="/jupyter/';
+            sub_filter "url('/" "url('/jupyter/";
+            sub_filter '"/api' '"/jupyter/api';
+            sub_filter '"/lab' '"/jupyter/lab';
+            sub_filter '"/static' '"/jupyter/static';
         }
         
         # Redirect /jupyter to /jupyter/ for consistency
