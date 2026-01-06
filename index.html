@@ -549,27 +549,6 @@
             cursor: not-allowed;
         }
         
-        .go-to-app-btn {
-            width: 100%;
-            padding: 12px 16px;
-            background: #76b900;
-            color: #000;
-            font-size: 14px;
-            font-weight: 600;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 12px;
-            text-decoration: none;
-            display: block;
-            text-align: center;
-        }
-        
-        .go-to-app-btn:hover {
-            background: #8fd400;
-        }
-        
         /* Service links container */
         .service-links {
             margin-top: 16px;
@@ -647,10 +626,6 @@
                 <p class="timestamp" id="historyTimestamp">Deployed: --</p>
             </div>
             
-            <!-- Go to app button (shown in history mode) -->
-            <a href="/" class="go-to-app-btn" id="goToAppBtn" style="display: none;">
-                Open Application →
-            </a>
             
             <!-- Service links (shown after successful deployment) -->
             <div class="service-links" id="serviceLinks" style="display: none;">
@@ -735,7 +710,6 @@
         const historyBanner = document.getElementById('historyBanner');
         const historyVersion = document.getElementById('historyVersion');
         const historyTimestamp = document.getElementById('historyTimestamp');
-        const goToAppBtn = document.getElementById('goToAppBtn');
         const uninstallBtn = document.getElementById('uninstallBtn');
         const serviceLinks = document.getElementById('serviceLinks');
         const serviceLinksContainer = document.getElementById('serviceLinksContainer');
@@ -894,9 +868,6 @@
             // Update heading
             document.getElementById('heading').textContent = 'Deployment Status';
             
-            // Show "Go to App" button
-            goToAppBtn.style.display = 'block';
-            
             // Disable deploy form
             submitBtn.classList.add('btn-disabled');
             submitBtn.textContent = '✓ Already Deployed';
@@ -929,7 +900,6 @@
             historyMode = false;
             
             historyBanner.classList.remove('show');
-            goToAppBtn.style.display = 'none';
             uninstallBtn.style.display = 'none';
             serviceLinks.style.display = 'none';
             
