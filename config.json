@@ -19,7 +19,7 @@
       },
       {
         "name": "Jupyter Notebooks",
-        "url": "/jupyter",
+        "url": "/jupyter/lab",
         "description": "NVIDIA GenerativeAI examples and notebooks"
       },
       {
@@ -71,7 +71,7 @@
       },
       {
         "name": "Jupyter Notebooks",
-        "url": "/jupyter",
+        "url": "/jupyter/lab",
         "description": "NVIDIA GenerativeAI examples and notebooks"
       },
       {
