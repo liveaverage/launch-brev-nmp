@@ -1,310 +1,302 @@
-# Deployment Web Application
+<h1 align="center">🚀 NeMo Microservices Launcher</h1>
 
-A simple, self-contained web application for deploying Docker Compose or Helm charts with NGC API key authentication. The interface mimics the Brev/NVIDIA login console design.
+<p align="center">
+  <strong>One-click web interface for deploying NVIDIA NeMo Microservices Platform</strong>
+</p>
 
-## Features
+<p align="center">
+  <img src="https://img.shields.io/badge/Helm-Chart-0F1689?style=for-the-badge&logo=helm&logoColor=white" alt="Helm"/>
+  <img src="https://img.shields.io/badge/Kubernetes-Orchestration-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
+  <img src="https://img.shields.io/badge/NVIDIA-NeMo-76B900?style=for-the-badge&logo=nvidia&logoColor=white" alt="NVIDIA NeMo"/>
+  <img src="https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask"/>
+</p>
 
-- Single-page web interface styled after https://login.brev.nvidia.com/signin
-- Support for Docker Compose and Helm chart deployments
-- Secure API key input
-- Easily configurable commands via JSON configuration
-- Lightweight Docker container
-- Real-time deployment feedback
+---
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
+### Deploy Instantly with NVIDIA Brev
 
-- Docker installed and running
-- Docker socket access (for Docker Compose deployments)
-- Helm charts or docker-compose.yaml in the working directory (as needed)
-- For Kubernetes: kubectl and/or helm installed, kubeconfig configured
+<p align="center">
+  <em>Skip the setup—launch NeMo Microservices on a fully configured GPU cluster in seconds</em>
+</p>
 
-### Build the Docker Image
+<table align="center">
+<thead>
+<tr>
+<th align="center">GPU</th>
+<th align="center">VRAM</th>
+<th align="center">Best For</th>
+<th align="center">Deploy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><strong>🟢 NVIDIA H100</strong></td>
+<td align="center">80 GB</td>
+<td align="center">Production NeMo Platform</td>
+<td align="center"><a href="https://brev.nvidia.com/launchable/deploy?launchableID=env-2vkIVQUiE6AsCgXRUXTsOCIlUvv"><img src="https://brev-assets.s3.us-west-1.amazonaws.com/nv-lb-dark.svg" alt="Deploy on Brev" height="40"/></a></td>
+</tr>
+</tbody>
+</table>
+
+<p align="center">
+  <sub>☝️ Click to launch on <a href="https://brev.nvidia.com">Brev</a> — GPU cloud for AI developers</sub>
+</p>
+
+### One-Line Bootstrap (Recommended)
 
 ```bash
-docker build -t deployment-app .
+curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 ```
 
-## Deployment Options for Local Kubernetes Orchestration
+**What it does:**
+- ✅ Clones the repository
+- ✅ Pulls container image (`ghcr.io/liveaverage/launch-brev-nmp:latest`)
+- ✅ Starts the launcher on port 9090
+- ✅ Exposes web UI at `http://localhost:9090`
 
-**CRITICAL**: When orchestrating Kubernetes/Helm deployments from a container to a local cluster (kind, k3s, minikube, Docker Desktop), network access is a key consideration. Choose the appropriate method:
-
-### Option 0: One-shot installation for Kubernetes
+<details>
+<summary><strong>📂 Custom Install Directory</strong></summary>
 
 ```bash
 INSTALL_DIR=/opt/nemo-launcher curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 ```
 
-### Option 1: Native/Host Mode (RECOMMENDED for Local K8s)
+</details>
 
-Run the app directly on your host without containerization. This avoids all networking issues.
+---
 
-```bash
-./run-native.sh
+## 📋 Prerequisites
+
+| Requirement | Details |
+|:------------|:--------|
+| **Kubernetes** | MicroK8s, K3s, or managed K8s cluster |
+| **GPU** | NVIDIA GPU with drivers 525.60.13+ |
+| **Helm** | Helm 3.x installed |
+| **NGC API Key** | From [ngc.nvidia.com](https://ngc.nvidia.com/) |
+
+> **Note:** The launcher auto-detects cluster configuration and handles Volcano scheduler installation.
+
+### Supported Platforms
+
+| Platform | Status |
+|:---------|:-------|
+| **MicroK8s** with NVIDIA GPU | ✅ Fully supported |
+| **K3s** with NVIDIA GPU | ✅ Fully supported |
+| **EKS/GKE/AKS** with GPU nodes | ✅ Fully supported |
+| **Kind/Minikube** (local dev) | ⚠️ Limited GPU support |
+
+---
+
+## 🎯 Usage
+
+<table>
+<tr>
+<th>Step</th>
+<th>Action</th>
+</tr>
+<tr>
+<td>1️⃣</td>
+<td>Open <code>http://localhost:9090</code> in your browser</td>
+</tr>
+<tr>
+<td>2️⃣</td>
+<td>Enter your <strong>NGC API Key</strong></td>
+</tr>
+<tr>
+<td>3️⃣</td>
+<td>Click <strong>🤙 Let it rip</strong> to deploy</td>
+</tr>
+<tr>
+<td>4️⃣</td>
+<td>Monitor real-time logs as Helm installs NeMo components</td>
+</tr>
+<tr>
+<td>5️⃣</td>
+<td>Access services via generated links</td>
+</tr>
+</table>
+
+### 🌐 Service Links
+
+After deployment completes, clickable service links appear:
+
+| Service | Path | Description |
+|:--------|:-----|:------------|
+| **🎨 NeMo Studio** | `/studio` | Visual workflow builder and model management |
+| **📓 Jupyter Notebooks** | `/jupyter/lab` | NVIDIA GenerativeAI examples |
+| **⚙️ Deployment Status** | `/interlude` | Launcher UI and deployment logs |
+
+### 🗑️ Uninstalling
+
+Click **Uninstall** to:
+- Run `helm uninstall` on NeMo Microservices
+- Delete the NeMo namespace
+- Remove Jupyter deployment
+- Clean up deployment state
+
+---
+
+## ⚙️ Configuration
+
+### 🔗 Path-Based Routing
+
+All services are accessible via single-origin path-based routing:
+
+```
+https://your-domain.com/           → Deployment UI (Interlude)
+https://your-domain.com/studio     → NeMo Studio
+https://your-domain.com/jupyter/lab → Jupyter Notebooks
+https://your-domain.com/v1/...     → NeMo API endpoints
 ```
 
-**Pros:**
-- No network isolation issues
-- Direct access to Docker socket and kubeconfig
-- Simplest setup for local development
-- Works with all local Kubernetes distributions
+**Benefits:**
+- No CORS issues
+- Single SSL certificate
+- Clean URL structure
 
-**Cons:**
-- Requires Python installed on host
-- Less isolated
+<details>
+<summary><strong>🎨 Customization</strong></summary>
 
-### Option 2: Host Network Mode
-
-Run the container with `--network host` to share the host's network namespace.
-
-```bash
-./run-with-host-network.sh
-```
-
-**Pros:**
-- Container can access `localhost` Kubernetes API
-- Works with kind, k3s, minikube, Docker Desktop
-- Still containerized
-
-**Cons:**
-- Linux only (Mac/Windows Docker Desktop doesn't fully support host network mode)
-- Port 8080 must be available on host
-
-### Option 3: Modified Kubeconfig (Cross-Platform)
-
-Automatically modify kubeconfig to replace `localhost` with Docker-accessible addresses.
-
-```bash
-./run-with-kubeconfig-fix.sh
-```
-
-**Pros:**
-- Works on Linux, Mac, and Windows
-- Container remains isolated
-- Port mapping works normally
-
-**Cons:**
-- Requires kubeconfig modification
-- May need adjustment for different cluster types
-
-### Option 4: Remote Kubernetes Cluster
-
-For remote clusters (EKS, GKE, AKS, etc.), standard container deployment works:
-
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -v ~/.kube/config:/root/.kube/config:ro \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  --name deployment-app \
-  deployment-app
-```
-
-### Docker Compose Only
-
-If you're only using Docker Compose (no Kubernetes), standard deployment works:
-
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $(pwd)/docker-compose.yaml:/app/docker-compose.yaml:ro \
-  --name deployment-app \
-  deployment-app
-```
-
-### Access the Application
-
-Open your browser and navigate to:
-```
-http://localhost:8080
-```
-
-## Configuration
-
-### Customizing Commands
-
-Edit the `config.json` file to customize the commands executed for each deployment type:
+Edit `config.json` to modify deployment behavior:
 
 ```json
 {
-  "docker-compose": {
-    "command": "docker-compose up -d",
-    "working_dir": "/app",
-    "env_var": "NGC_API_KEY"
-  },
-  "helm": {
-    "command": "helm install myrelease ./chart --set imagePullSecret=$NGC_API_KEY",
-    "working_dir": "/app",
-    "env_var": "NGC_API_KEY"
+  "helm-nemo": {
+    "heading": "Deploy NeMo Microservices",
+    "namespace": "nemo",
+    "services": [
+      {"name": "NeMo Studio", "url": "/studio", "description": "..."}
+    ]
   }
 }
 ```
 
-#### Configuration Fields
+</details>
 
-- `command`: The shell command to execute
-- `working_dir`: The directory where the command will be run
-- `env_var`: The environment variable name where the API key will be stored
+---
 
-### Adding New Deployment Types
+## 🏗️ Architecture
 
-1. Edit `config.json` and add a new deployment type:
+### Frontend (SPA)
+- Pure JavaScript (no framework dependencies)
+- Server-Sent Events (SSE) for real-time log streaming
+- Deployment state management with history mode
 
-```json
-{
-  "my-custom-deploy": {
-    "command": "kubectl apply -f deployment.yaml",
-    "working_dir": "/app",
-    "env_var": "MY_API_KEY"
-  }
-}
-```
+### Backend (Flask + Nginx)
+- Lightweight Python Flask application
+- Nginx reverse proxy for path-based routing
+- Real-time command streaming
+- Persistent deployment state tracking
 
-2. Update `index.html` to add the new option to the dropdown:
+### Deployed Components
 
-```html
-<select id="deployType" name="deployType">
-    <option value="docker-compose">Docker Compose</option>
-    <option value="helm">Helm Chart</option>
-    <option value="my-custom-deploy">My Custom Deploy</option>
-</select>
-```
+| Component | Namespace | Purpose |
+|:----------|:----------|:--------|
+| **NeMo Microservices** | `nemo` | Core platform (Studio, NIM Proxy, Entity Store, etc.) |
+| **Jupyter** | `jupyter` | NVIDIA GenerativeAI examples |
+| **Volcano** | `volcano-system` | Batch scheduling for training jobs |
 
-3. Rebuild the Docker image
+---
 
-## File Structure
+## 🔥 Troubleshooting
 
-```
-.
-├── Dockerfile              # Container definition
-├── app.py                  # Flask backend server
-├── index.html              # Frontend interface
-├── config.json             # Deployment configuration
-├── requirements.txt        # Python dependencies
-├── assets/
-│   └── nvidia-logo.svg     # Logo (replace with actual NVIDIA logo)
-└── README.md               # This file
-```
+<details>
+<summary><strong>❌ Helm Install Fails</strong></summary>
 
-## Customization
+**Symptom:** `helm install` returns error
 
-### Changing the Logo
-
-Replace `assets/nvidia-logo.svg` with your own logo image (PNG, SVG, etc.) and update the reference in `index.html` if needed.
-
-### Styling
-
-All styles are contained in the `<style>` section of `index.html`. Key colors:
-- Background: `#181818`
-- Primary Green: `#76b900`
-- Input Background: `#2a2a2a`
-
-### Timeout
-
-The default command timeout is 5 minutes. To change it, edit `app.py`:
-
-```python
-result = subprocess.run(
-    command,
-    shell=True,
-    cwd=working_dir,
-    env=env,
-    capture_output=True,
-    text=True,
-    timeout=600  # Change to 10 minutes
-)
-```
-
-## Security Considerations
-
-- The API key is sent over HTTP by default. For production use, implement HTTPS
-- API keys are passed as environment variables to subprocesses
-- The application runs shell commands - ensure config.json is properly secured
-- Docker socket access gives significant privileges - use with caution
-
-## Troubleshooting
-
-### Kubernetes commands fail with connection errors
-
-This is the most common issue when running containerized orchestration against local clusters.
-
-**Error:** `Unable to connect to the server: dial tcp 127.0.0.1:6443: connect: connection refused`
-
-**Cause:** The container can't reach the Kubernetes API at `localhost` because it's isolated.
-
-**Solutions:**
-1. Use **native mode** (recommended): `./run-native.sh`
-2. Use **host network mode**: `./run-with-host-network.sh`
-3. Use **modified kubeconfig**: `./run-with-kubeconfig-fix.sh`
-
-### Docker Compose commands fail
-
-Ensure the Docker socket is properly mounted:
+**Solution:**
 ```bash
--v /var/run/docker.sock:/var/run/docker.sock
+# Check cluster connectivity
+kubectl cluster-info
+
+# Verify NGC API key
+helm registry login nvcr.io --username '$oauthtoken' --password YOUR_KEY
 ```
 
-Also verify the socket permissions:
+</details>
+
+<details>
+<summary><strong>❌ Pods Stuck in Pending</strong></summary>
+
+**Symptom:** Pods don't start, stuck in `Pending`
+
+**Solution:**
 ```bash
-ls -l /var/run/docker.sock
-# Should show: srw-rw---- 1 root docker
+# Check for GPU availability
+kubectl describe nodes | grep -A5 nvidia.com/gpu
+
+# Verify Volcano scheduler
+kubectl get pods -n volcano-system
 ```
 
-### Helm/kubectl not found in container
+</details>
 
-The Dockerfile includes these tools. Rebuild the image:
+<details>
+<summary><strong>❌ Jupyter Not Accessible</strong></summary>
+
+**Symptom:** `/jupyter/lab` returns 404 or hangs
+
+**Solution:**
 ```bash
-docker build -t deployment-app .
+# Check Jupyter pod
+kubectl get pods -n jupyter
+kubectl logs -n jupyter -l app=jupyter
+
+# Re-run proxy configuration
+docker exec interlude bash /app/nemo-proxy/configure-proxy.sh
 ```
 
-### Commands timeout
+</details>
 
-Increase the timeout in `app.py` or check command execution logs:
-```bash
-docker logs deployment-app
-```
+<details>
+<summary><strong>🐛 Development Mode</strong></summary>
 
-### Port already in use
-
-Change the port mapping:
-```bash
-docker run -p 9090:8080 ...
-```
-
-Then access at `http://localhost:9090`
-
-### Permission denied on kubeconfig
-
-Make sure the kubeconfig is readable:
-```bash
-chmod 644 ~/.kube/config
-```
-
-### Kind cluster specific issues
-
-For kind clusters, you may need to export the kubeconfig explicitly:
-```bash
-kind export kubeconfig --name your-cluster-name
-```
-
-Then use host network mode or native mode for deployment.
-
-## Development
-
-To run the application without Docker:
+Run locally without Docker:
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the server
 python app.py
 ```
 
-The application will be available at `http://localhost:8080`
+Access at `http://localhost:9090`
 
-## License
+</details>
 
-MIT
+---
+
+## 🌍 Environment Variables
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `DEPLOY_TYPE` | `helm-nemo` | Active deployment type |
+| `DEPLOY_HEADING` | `Deploy NeMo Microservices` | Custom heading |
+| `LAUNCHER_PATH` | `/interlude` | Base path for deployment UI |
+
+---
+
+## 📚 API Endpoints
+
+<details>
+<summary><strong>View Available Endpoints</strong></summary>
+
+```bash
+# Check configuration
+curl http://localhost:9090/config
+
+# Check deployment state
+curl http://localhost:9090/state
+
+# View help content
+curl http://localhost:9090/help
+```
+
+</details>
+
+---
+
+<p align="center">
+  <sub>Built on the <strong>Interlude</strong> framework • MIT License</sub>
+</p>
