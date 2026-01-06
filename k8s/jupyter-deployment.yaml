@@ -32,9 +32,9 @@ spec:
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
-        # NOTEBOOK_ARGS is respected by jupyter/docker-stacks base images
-        - name: NOTEBOOK_ARGS
-          value: "--ServerApp.base_url=/jupyter --ServerApp.allow_origin='*'"
+        # Base URL for reverse proxy subpath routing
+        - name: JUPYTER_BASE_URL
+          value: "/jupyter"
         resources:
           requests:
             memory: "512Mi"
