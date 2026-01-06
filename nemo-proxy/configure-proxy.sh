@@ -461,9 +461,8 @@ if [ -n "$JUPYTER" ]; then
     cat >> "$NGINX_CONF" << 'JUPYTERNGINX'
         
         # Jupyter: /jupyter (from NVIDIA GenerativeAIExamples)
-        # Rewrites /jupyter/* to /* and proxies to Jupyter service
+        # Jupyter configured with base_url=/jupyter, so no rewrite needed
         location /jupyter {
-            rewrite ^/jupyter(.*) /$1 break;
             proxy_pass http://jupyter;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
