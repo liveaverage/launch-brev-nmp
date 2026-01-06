@@ -32,6 +32,9 @@ spec:
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
+        # NOTEBOOK_ARGS is respected by jupyter/docker-stacks base images
+        - name: NOTEBOOK_ARGS
+          value: "--ServerApp.base_url=/jupyter --ServerApp.allow_origin='*'"
         resources:
           requests:
             memory: "512Mi"
@@ -41,13 +44,13 @@ spec:
             cpu: "2000m"
         readinessProbe:
           httpGet:
-            path: /api
+            path: /jupyter/api
             port: 8888
           initialDelaySeconds: 30
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /api
+            path: /jupyter/api
             port: 8888
           initialDelaySeconds: 60
           periodSeconds: 15
