@@ -35,7 +35,7 @@
 <td align="center"><strong>🟢 NVIDIA H100</strong></td>
 <td align="center">80 GB</td>
 <td align="center">Production NeMo Platform</td>
-<td align="center"><a href="https://brev.nvidia.com/launchable/deploy?launchableID=env-2vkIVQUiE6AsCgXRUXTsOCIlUvv"><img src="https://brev-assets.s3.us-west-1.amazonaws.com/nv-lb-dark.svg" alt="Deploy on Brev" height="40"/></a></td>
+<td align="center"><a href="https://brev.nvidia.com/launchable/deploy/now?launchableID=env-37wipAuAptYmhMzmPiS2DJj7aL3"><img src="https://brev-assets.s3.us-west-1.amazonaws.com/nv-lb-dark.svg" alt="Deploy on Brev" height="40"/></a></td>
 </tr>
 </tbody>
 </table>
