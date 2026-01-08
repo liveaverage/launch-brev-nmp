@@ -990,7 +990,7 @@ def deploy():
                 """Mask API keys and passwords in commands"""
                 # Mask legacy API key
                 if api_key:
-                masked = cmd_str.replace(api_key, '***')
+                    masked = cmd_str.replace(api_key, '***')
                 else:
                     masked = cmd_str
                 # Mask dynamic input fields
