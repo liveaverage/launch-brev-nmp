@@ -54,13 +54,24 @@ STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 JUPYTER=$(kubectl get svc -n jupyter jupyter-svc -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
 [ -n "$JUPYTER" ] && JUPYTER="${JUPYTER}:8888"
 
-# Warn if critical services are missing (deployment may still be in progress)
-if [ -z "$DATA_STORE" ]; then
-    echo "   ⚠️ WARNING: Data Store not found - dataset uploads will fail"
-fi
-if [ -z "$STUDIO" ]; then
-    echo "   ⚠️ WARNING: Studio not found - /studio will return 502"
-fi
+# Fallback for missing services - use a dummy backend that will return 502
+# This prevents nginx config errors from empty server directives
+DUMMY_BACKEND="127.0.0.1:1"  # Will fail immediately (nothing listens on port 1)
+
+# Set fallbacks and warn for critical missing services
+[ -z "$NIM_PROXY" ] && NIM_PROXY="$DUMMY_BACKEND" && echo "   ⚠️ NIM Proxy not found"
+[ -z "$DATA_STORE" ] && DATA_STORE="$DUMMY_BACKEND" && echo "   ⚠️ Data Store not found - dataset uploads will fail"
+[ -z "$ENTITY_STORE" ] && ENTITY_STORE="$DUMMY_BACKEND" && echo "   ⚠️ Entity Store not found"
+[ -z "$CUSTOMIZER" ] && CUSTOMIZER="$DUMMY_BACKEND" && echo "   ⚠️ Customizer not found"
+[ -z "$EVALUATOR" ] && EVALUATOR="$DUMMY_BACKEND" && echo "   ⚠️ Evaluator not found"
+[ -z "$GUARDRAILS" ] && GUARDRAILS="$DUMMY_BACKEND" && echo "   ⚠️ Guardrails not found"
+[ -z "$DEPLOYMENT_MGMT" ] && DEPLOYMENT_MGMT="$DUMMY_BACKEND" && echo "   ⚠️ Deployment Management not found"
+[ -z "$DATA_DESIGNER" ] && DATA_DESIGNER="$DUMMY_BACKEND" && echo "   ⚠️ Data Designer not found"
+[ -z "$AUDITOR" ] && AUDITOR="$DUMMY_BACKEND" && echo "   ⚠️ Auditor not found"
+[ -z "$SAFE_SYNTHESIZER" ] && SAFE_SYNTHESIZER="$DUMMY_BACKEND" && echo "   ⚠️ Safe Synthesizer not found"
+[ -z "$CORE_API" ] && CORE_API="$DUMMY_BACKEND" && echo "   ⚠️ Core API not found"
+[ -z "$INTAKE" ] && INTAKE="$DUMMY_BACKEND" && echo "   ⚠️ Intake not found"
+[ -z "$STUDIO" ] && STUDIO="$DUMMY_BACKEND" && echo "   ⚠️ Studio not found - /studio will return 502"
 
 echo ""
 echo "   Discovered services (per NVIDIA docs):"
