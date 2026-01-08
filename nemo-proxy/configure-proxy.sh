@@ -173,37 +173,20 @@ cat >> "$NGINX_CONF" << NGINX
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         
-        # Disable gzip for sub_filter to work
+        # Disable gzip for sub_filter to work on HTML
         proxy_set_header Accept-Encoding "";
         
-        # URL rewriting for NeMo - convert internal hostnames to relative paths
-        sub_filter 'http://nemo.test:3000' '';
-        sub_filter 'http://nim.test:3000' '';
-        sub_filter 'http://data-store.test:3000' '';
-        sub_filter 'http://entity-store.test:3000' '';
-        sub_filter 'http://nemo-platform.test:3000' '';
-        sub_filter 'https://nemo.test:3000' '';
-        sub_filter 'https://nim.test:3000' '';
-        sub_filter 'https://data-store.test:3000' '';
-        sub_filter 'https://entity-store.test:3000' '';
-        sub_filter 'https://nemo-platform.test:3000' '';
-        
-        # Rewrite http:// to https:// in API responses
-        # Target double-quoted URLs in JSON and JS to avoid breaking SVGs
-        sub_filter '"http://' '"https://';
-        sub_filter "'http://" "'https://";
-        
-        # Also add proxy_redirect to fix Location headers from upstream
-        proxy_redirect http://\$host/ https://\$host/;
-        proxy_redirect http://\$host:\$server_port/ https://\$host/;
-        
-        # Inject VITE environment variables for NeMo Studio
+        # Inject VITE environment variables for NeMo Studio (HTML only)
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
         # This works because nginx does path-based routing to the right backend
         sub_filter '</head>' '<script>(function(){var b=window.location.origin;window.VITE_PLATFORM_BASE_URL=b;window.VITE_ENTITY_STORE_MICROSERVICE_URL=b;window.VITE_NIM_PROXY_URL=b;window.VITE_DATA_STORE_URL=b;window.VITE_BASE_URL=b;console.log("[Interlude] Single-origin mode:",b);})();</script></head>';
         
+        # Fix Location headers from upstream (http->https)
+        proxy_redirect http://\$host/ https://\$host/;
+        proxy_redirect http://\$host:\$server_port/ https://\$host/;
+        
         sub_filter_once off;
-        sub_filter_types text/html application/json application/javascript text/javascript;
+        sub_filter_types text/html;
         
         # ─── Deployment UI (Flask SPA) ───
         # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
