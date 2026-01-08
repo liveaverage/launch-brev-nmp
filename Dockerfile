@@ -49,8 +49,9 @@ COPY config.json .
 COPY help-content.json .
 COPY assets ./assets
 COPY nemo-proxy ./nemo-proxy
+COPY scripts ./scripts
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh nemo-proxy/*.sh 2>/dev/null || true
+RUN chmod +x entrypoint.sh nemo-proxy/*.sh scripts/*.sh 2>/dev/null || true
 
 # Expose ports:
 # 9090 - nginx HTTP (single entry point, avoids conflict with k8s ingress on :80)
