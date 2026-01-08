@@ -173,16 +173,7 @@ cat >> "$NGINX_CONF" << NGINX
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         
-        # CRITICAL: Force HTTPS for all resources
-        # 1. CSP upgrade-insecure-requests tells browser to auto-upgrade http:// to https://
-        # 2. Hide any upstream CSP headers that might conflict
-        proxy_hide_header Content-Security-Policy;
-        add_header Content-Security-Policy "upgrade-insecure-requests" always;
-        
-        # Also add HSTS to ensure browser always uses HTTPS
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-        
-        # Disable gzip for sub_filter
+        # Disable gzip for sub_filter to work
         proxy_set_header Accept-Encoding "";
         
         # URL rewriting for NeMo - convert internal hostnames to relative paths
@@ -197,13 +188,9 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter 'https://entity-store.test:3000' '';
         sub_filter 'https://nemo-platform.test:3000' '';
         
-        # CRITICAL: Rewrite http:// to https:// in ALL responses
-        # Data Store and other NeMo services return absolute URLs with http://
-        # Catch multiple patterns: quoted, unquoted, with or without port
+        # Rewrite http:// to https:// in JSON responses (for API URLs)
+        # Only target double-quoted URLs to avoid breaking SVGs and other content
         sub_filter '"http://' '"https://';
-        sub_filter "'http://" "'https://";
-        sub_filter '>http://' '>https://';
-        sub_filter ' http://' ' https://';
         
         # Inject VITE environment variables for NeMo Studio
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
@@ -211,7 +198,7 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter '</head>' '<script>(function(){var b=window.location.origin;window.VITE_PLATFORM_BASE_URL=b;window.VITE_ENTITY_STORE_MICROSERVICE_URL=b;window.VITE_NIM_PROXY_URL=b;window.VITE_DATA_STORE_URL=b;window.VITE_BASE_URL=b;console.log("[Interlude] Single-origin mode:",b);})();</script></head>';
         
         sub_filter_once off;
-        sub_filter_types text/html text/javascript application/javascript application/json text/plain *;
+        sub_filter_types text/html application/json;
         
         # ─── Deployment UI (Flask SPA) ───
         # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
