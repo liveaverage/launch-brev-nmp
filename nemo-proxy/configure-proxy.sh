@@ -495,7 +495,7 @@ cat >> "$NGINX_CONF" << NGINX
         # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
         # This catches Git LFS operations, HuggingFace API, and any other Data Store paths
         # Data Store returns http:// URLs - rewrite to https:// for browser compatibility
-        # BUFFERING ENABLED: Prevents "unexpected EOF" errors with cloudflared
+        # CLOUDFLARED FIX: Must NOT use Connection: upgrade for non-WebSocket requests
         location / {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -504,8 +504,9 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Accept-Encoding "";
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection "upgrade";
+            # CRITICAL: Empty Connection header for cloudflared compatibility
+            # DO NOT use "upgrade" here - breaks non-WebSocket requests
+            proxy_set_header Connection "";
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
@@ -515,7 +516,8 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
-            # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
+            # Enable BOTH request and response buffering for cloudflared
+            proxy_request_buffering on;
             proxy_buffering on;
             proxy_buffer_size 128k;
             proxy_buffers 8 256k;
