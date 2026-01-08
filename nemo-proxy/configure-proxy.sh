@@ -126,6 +126,14 @@ http {
     keepalive_timeout 65;
     client_max_body_size 50g;
     
+    # Conditional Connection header for WebSocket vs regular HTTP
+    # - WebSocket requests (Upgrade header present): Connection = "upgrade"
+    # - Regular HTTP requests: Connection = "" (enables keep-alive, fixes cloudflared EOF)
+    map \$http_upgrade \$connection_upgrade {
+        default "";
+        websocket "upgrade";
+    }
+    
     # Flask SPA backend (deployment UI)
     upstream flask_backend {
         server $FLASK_BACKEND;
@@ -456,7 +464,7 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection "upgrade";
+            proxy_set_header Connection \$connection_upgrade;
             proxy_buffering off;
         }
 NGINX
@@ -474,9 +482,9 @@ if [ -n "$JUPYTER" ]; then
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
-            # WebSocket support for Jupyter kernels/terminals
+            # WebSocket support for Jupyter kernels/terminals (conditional)
             proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
+            proxy_set_header Connection $connection_upgrade;
             proxy_connect_timeout 60s;
             proxy_send_timeout 86400s;
             proxy_read_timeout 86400s;
@@ -495,7 +503,6 @@ cat >> "$NGINX_CONF" << NGINX
         # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
         # This catches Git LFS operations, HuggingFace API, and any other Data Store paths
         # Data Store returns http:// URLs - rewrite to https:// for browser compatibility
-        # CLOUDFLARED FIX: Must NOT use Connection: upgrade for non-WebSocket requests
         location / {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -504,9 +511,10 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Accept-Encoding "";
-            # CRITICAL: Empty Connection header for cloudflared compatibility
-            # DO NOT use "upgrade" here - breaks non-WebSocket requests
-            proxy_set_header Connection "";
+            # Conditional WebSocket support: "upgrade" only when Upgrade header present
+            # Empty string for regular HTTP (fixes cloudflared "unexpected EOF")
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \$connection_upgrade;
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
