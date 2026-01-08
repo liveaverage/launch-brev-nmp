@@ -454,7 +454,8 @@ def get_config():
             'deployed_at': persistent_state.get('deployed_at'),
             'deployed_version': persistent_state.get('version'),
             'input_fields': deploy_config.get('input_fields', []),
-            'services': persistent_state.get('services', [])
+            'services': persistent_state.get('services', []),
+            'api_docs': config.get('_api_docs')
         }
         return jsonify(metadata)
 

@@ -596,6 +596,147 @@
             font-size: 12px;
             margin-top: 4px;
         }
+        
+        /* API Docs button */
+        .api-docs-btn {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 20px;
+            background: rgba(118, 185, 0, 0.15);
+            border: 1px solid rgba(118, 185, 0, 0.4);
+            border-radius: 6px;
+            color: #76b900;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .api-docs-btn:hover {
+            background: rgba(118, 185, 0, 0.25);
+            border-color: #76b900;
+        }
+        
+        /* API Docs Modal */
+        .api-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .api-modal.show {
+            display: flex;
+        }
+        
+        .api-modal-content {
+            background: #1e1e1e;
+            border: 1px solid rgba(118, 185, 0, 0.3);
+            border-radius: 8px;
+            max-width: 800px;
+            max-height: 85vh;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .api-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .api-modal-header h2 {
+            color: #76b900;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .api-modal-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        
+        .api-modal-close:hover {
+            color: #fff;
+        }
+        
+        .api-modal-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .api-modal-desc {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .api-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: rgba(118, 185, 0, 0.1);
+            color: #76b900;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(118, 185, 0, 0.3);
+        }
+        
+        .api-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.85);
+        }
+        
+        .api-table tr:hover td {
+            background: rgba(118, 185, 0, 0.05);
+        }
+        
+        .api-table .path {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            color: #76b900;
+        }
+        
+        .api-table .service {
+            font-weight: 500;
+        }
+        
+        .api-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .api-modal-footer a {
+            color: #76b900;
+            text-decoration: none;
+        }
+        
+        .api-modal-footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -632,6 +773,9 @@
                 <h4>🔗 Available Services</h4>
                 <div id="serviceLinksContainer"></div>
             </div>
+            
+            <!-- API Endpoints button (shown after deployment) -->
+            <button type="button" class="api-docs-btn" id="apiDocsBtn">📚 View API Endpoints</button>
 
             <form id="deployForm">
                 <!-- Legacy single API key field (hidden by default, shown if no input_fields) -->
@@ -694,6 +838,32 @@
         </div>
     </div>
 
+    <!-- API Endpoints Modal -->
+    <div class="api-modal" id="apiModal">
+        <div class="api-modal-content">
+            <div class="api-modal-header">
+                <h2 id="apiModalTitle">NeMo Platform API Endpoints</h2>
+                <button class="api-modal-close" id="apiModalClose">&times;</button>
+            </div>
+            <div class="api-modal-body">
+                <p class="api-modal-desc" id="apiModalDesc">All NeMo microservices are accessible via path-based routing.</p>
+                <table class="api-table">
+                    <thead>
+                        <tr>
+                            <th>Path</th>
+                            <th>Service</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apiTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="api-modal-footer" id="apiModalFooter">
+            </div>
+        </div>
+    </div>
+
     <script>
         const form = document.getElementById('deployForm');
         const submitBtn = document.getElementById('submitBtn');
@@ -707,6 +877,13 @@
         const modalClose = document.getElementById('modalClose');
         const helpBody = document.getElementById('helpBody');
         const helpTitle = document.getElementById('helpTitle');
+        const apiDocsBtn = document.getElementById('apiDocsBtn');
+        const apiModal = document.getElementById('apiModal');
+        const apiModalClose = document.getElementById('apiModalClose');
+        const apiModalTitle = document.getElementById('apiModalTitle');
+        const apiModalDesc = document.getElementById('apiModalDesc');
+        const apiTableBody = document.getElementById('apiTableBody');
+        const apiModalFooter = document.getElementById('apiModalFooter');
         const historyBanner = document.getElementById('historyBanner');
         const historyVersion = document.getElementById('historyVersion');
         const historyTimestamp = document.getElementById('historyTimestamp');
@@ -843,8 +1020,51 @@
                 if (config.services && config.services.length > 0) {
                     renderServiceLinks(config.services);
                 }
+                
+                // Show API docs button if deployed and api_docs available
+                if (config.deployed && config.api_docs) {
+                    apiDocsBtn.textContent = config.api_docs.button_label || '📚 View API Endpoints';
+                    apiDocsBtn.style.display = 'block';
+                    
+                    // Pre-populate modal content
+                    renderApiDocsModal(config.api_docs);
+                } else {
+                    apiDocsBtn.style.display = 'none';
+                }
             } catch (error) {
                 console.error('Failed to load config:', error);
+            }
+        }
+        
+        // Render API docs modal content
+        function renderApiDocsModal(apiDocs) {
+            if (!apiDocs) return;
+            
+            apiModalTitle.textContent = apiDocs.title || 'API Endpoints';
+            apiModalDesc.textContent = apiDocs.description || '';
+            
+            // Build table rows
+            apiTableBody.innerHTML = '';
+            if (apiDocs.endpoints && apiDocs.endpoints.length > 0) {
+                apiDocs.endpoints.forEach(ep => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="path">${ep.path}</td>
+                        <td class="service">${ep.service}</td>
+                        <td>${ep.description || ''}</td>
+                    `;
+                    apiTableBody.appendChild(row);
+                });
+            }
+            
+            // Footer with reference link
+            if (apiDocs.footer) {
+                // Convert markdown link to HTML
+                const footerHtml = apiDocs.footer.replace(
+                    /\[([^\]]+)\]\(([^)]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener">$1</a>'
+                );
+                apiModalFooter.innerHTML = footerHtml;
             }
         }
         
@@ -902,6 +1122,7 @@
             historyBanner.classList.remove('show');
             uninstallBtn.style.display = 'none';
             serviceLinks.style.display = 'none';
+            apiDocsBtn.style.display = 'none';
             
             document.getElementById('heading').textContent = config.heading || 'Deploy';
             
@@ -976,8 +1197,28 @@
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && helpModal.classList.contains('show')) {
-                helpModal.classList.remove('show');
+            if (e.key === 'Escape') {
+                if (helpModal.classList.contains('show')) {
+                    helpModal.classList.remove('show');
+                }
+                if (apiModal.classList.contains('show')) {
+                    apiModal.classList.remove('show');
+                }
+            }
+        });
+        
+        // API Docs modal handlers
+        apiDocsBtn.addEventListener('click', () => {
+            apiModal.classList.add('show');
+        });
+        
+        apiModalClose.addEventListener('click', () => {
+            apiModal.classList.remove('show');
+        });
+        
+        apiModal.addEventListener('click', (e) => {
+            if (e.target === apiModal) {
+                apiModal.classList.remove('show');
             }
         });
         
@@ -1259,8 +1500,11 @@
                     streamOutput.appendChild(line);
                     return;
                 case 'complete':
-                    // On completion, reload config to get services from persistent state
-                    loadConfig();
+                    // On completion, redirect to /interlude for clean state
+                    // This ensures history mode is properly entered with services visible
+                    setTimeout(() => {
+                        window.location.href = apiUrl('/');
+                    }, 1500);
                     return;
             }
 

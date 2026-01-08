@@ -3,6 +3,35 @@
     "launcher_path": "/interlude",
     "project_name": "NeMo Microservices Platform"
   },
+  "_api_docs": {
+    "button_label": "View API Endpoints",
+    "title": "NeMo Platform API Endpoints",
+    "description": "All NeMo microservices are accessible via path-based routing on your single domain.",
+    "endpoints": [
+      {"path": "/v1/namespaces", "service": "Entity Store", "description": "Manage namespaces"},
+      {"path": "/v1/projects", "service": "Entity Store", "description": "Manage projects"},
+      {"path": "/v1/datasets", "service": "Entity Store", "description": "Dataset management"},
+      {"path": "/v1/repos", "service": "Entity Store", "description": "Repository management"},
+      {"path": "/v1/models", "service": "Entity Store", "description": "Model registry"},
+      {"path": "/v1/customization", "service": "Customizer", "description": "Fine-tuning jobs"},
+      {"path": "/v1/evaluation", "service": "Evaluator", "description": "Evaluation jobs (v1)"},
+      {"path": "/v2/evaluation", "service": "Evaluator", "description": "Evaluation jobs (v2)"},
+      {"path": "/v1/guardrail", "service": "Guardrails", "description": "Safety guardrails"},
+      {"path": "/v1/deployment", "service": "Deployment Mgmt", "description": "NIM deployments"},
+      {"path": "/v1/data-designer", "service": "Data Designer", "description": "Synthetic data generation"},
+      {"path": "/v1beta1/audit", "service": "Auditor", "description": "Model auditing"},
+      {"path": "/v1beta1/safe-synthesizer", "service": "Safe Synthesizer", "description": "Private synthetic data"},
+      {"path": "/v1/jobs", "service": "Core API", "description": "Job management"},
+      {"path": "/v2/inference/gateway", "service": "Core API", "description": "Inference gateway"},
+      {"path": "/v1/chat/completions", "service": "NIM Proxy", "description": "Chat completions (OpenAI-compatible)"},
+      {"path": "/v1/completions", "service": "NIM Proxy", "description": "Text completions"},
+      {"path": "/v1/embeddings", "service": "NIM Proxy", "description": "Embeddings"},
+      {"path": "/v1/hf/*", "service": "Data Store", "description": "HuggingFace-style data access"},
+      {"path": "/studio", "service": "Studio", "description": "NeMo Studio UI"},
+      {"path": "/jupyter/lab", "service": "Jupyter", "description": "Jupyter notebooks"}
+    ],
+    "footer": "Ref: [NeMo Ingress Setup](https://docs.nvidia.com/nemo/microservices/latest/set-up/deploy-as-platform/ingress-setup.html)"
+  },
   "_nim_defaults": {
     "_comment": "Default NIM deployment settings (deployed automatically after platform install)",
     "model": "meta/llama-3.1-8b-instruct",

@@ -64,7 +64,9 @@ fi
 
 # Create the NIM deployment
 echo "   Creating NIM deployment..."
-response=$(curl -sf -X POST \
+
+# Use -w to get HTTP status code, capture both response body and status
+http_response=$(curl -s -w "\n%{http_code}" -X POST \
     "${DEPLOYMENT_BASE_URL}/v1/deployment/model-deployments" \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
@@ -81,11 +83,27 @@ response=$(curl -sf -X POST \
             \"created_by\": \"interlude\",
             \"access_policies\": {}
         }
-    }" 2>&1) || {
-    echo "   ⚠️ Failed to create NIM deployment: $response"
+    }" 2>&1)
+
+# Extract HTTP status code (last line) and response body (everything else)
+http_status=$(echo "$http_response" | tail -n1)
+response=$(echo "$http_response" | sed '$d')
+
+echo "   HTTP Status: $http_status"
+
+# Check for HTTP errors
+if [ -z "$http_status" ] || [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+    echo "   ⚠️ Failed to create NIM deployment (HTTP $http_status)"
+    echo "   Response: $response"
+    echo ""
+    echo "   Possible causes:"
+    echo "   - NGC_API_KEY not set or invalid"
+    echo "   - Deployment Management service not ready"
+    echo "   - Model '${NIM_MODEL}' not available"
+    echo ""
     echo "   You can deploy a NIM manually via Studio (/studio) later"
     exit 0
-}
+fi
 
 # Check response
 if echo "$response" | grep -q '"name"'; then
