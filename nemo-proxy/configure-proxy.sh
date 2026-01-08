@@ -190,6 +190,10 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter 'https://entity-store.test:3000' '';
         sub_filter 'https://nemo-platform.test:3000' '';
         
+        # CRITICAL: Rewrite http:// to https:// in Data Store LFS responses
+        # Data Store returns absolute URLs in Git LFS batch JSON - must match external scheme
+        sub_filter '"http://' '"https://';
+        
         # Inject VITE environment variables for NeMo Studio
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
         # This works because nginx does path-based routing to the right backend
@@ -274,6 +278,7 @@ cat >> "$NGINX_CONF" << NGINX
         }
         
         # ─── Data Store routes (datastore.test equivalent) ───
+        # HuggingFace API
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -285,6 +290,25 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             proxy_buffering off;
+        }
+        
+        # Git LFS endpoints for dataset uploads: /<namespace>/<repo>.git/...
+        # Data Store returns http:// URLs in LFS batch responses - rewrite to https://
+        location ~ ^/[^/]+/[^/]+\.git(/|$) {
+            proxy_pass http://data_store;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 600s;
+            proxy_read_timeout 600s;
+            proxy_buffering off;
+            
+            # Rewrite http:// to https:// in Location headers
+            proxy_redirect http://\$host/ https://\$host/;
+            proxy_redirect http://\$host:\$server_port/ https://\$host/;
         }
         
         # ─── Default host routes (nemo.test equivalent) ───
