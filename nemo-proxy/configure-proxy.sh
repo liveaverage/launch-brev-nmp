@@ -136,8 +136,13 @@ http {
     # NIM Proxy host services
     upstream nim_proxy { server $NIM_PROXY; }
     
-    # Data Store host services  
-    upstream data_store { server $DATA_STORE; }
+    # Data Store host services (with keepalive for connection reuse)
+    upstream data_store {
+        server $DATA_STORE;
+        keepalive 32;
+        keepalive_requests 1000;
+        keepalive_timeout 60s;
+    }
     
     # Default host services
     upstream entity_store { server $ENTITY_STORE; }
@@ -264,9 +269,15 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Accept-Encoding "";
+            proxy_set_header Connection "";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
+            
+            # Retry on connection errors (helps with flaky Data Store)
+            proxy_next_upstream error timeout http_502 http_503;
+            proxy_next_upstream_tries 3;
+            proxy_next_upstream_timeout 30s;
             
             # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
             proxy_buffering on;
@@ -498,6 +509,11 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
+            
+            # Retry on connection errors (helps with flaky Data Store)
+            proxy_next_upstream error timeout http_502 http_503;
+            proxy_next_upstream_tries 3;
+            proxy_next_upstream_timeout 30s;
             
             # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
             proxy_buffering on;

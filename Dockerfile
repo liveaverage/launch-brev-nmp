@@ -44,6 +44,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
+# Fail build early if Python syntax is invalid
+RUN python -m py_compile app.py
+
 COPY index.html .
 COPY config.json .
 COPY help-content.json .
