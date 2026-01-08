@@ -173,9 +173,14 @@ cat >> "$NGINX_CONF" << NGINX
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         
-        # CRITICAL: Tell browser to upgrade all http:// requests to https://
-        # This handles Mixed Content errors from NeMo services returning http:// URLs
+        # CRITICAL: Force HTTPS for all resources
+        # 1. CSP upgrade-insecure-requests tells browser to auto-upgrade http:// to https://
+        # 2. Hide any upstream CSP headers that might conflict
+        proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "upgrade-insecure-requests" always;
+        
+        # Also add HSTS to ensure browser always uses HTTPS
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         
         # Disable gzip for sub_filter
         proxy_set_header Accept-Encoding "";
@@ -192,9 +197,13 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter 'https://entity-store.test:3000' '';
         sub_filter 'https://nemo-platform.test:3000' '';
         
-        # CRITICAL: Rewrite http:// to https:// in Data Store LFS responses
-        # Data Store returns absolute URLs in Git LFS batch JSON - must match external scheme
+        # CRITICAL: Rewrite http:// to https:// in ALL responses
+        # Data Store and other NeMo services return absolute URLs with http://
+        # Catch multiple patterns: quoted, unquoted, with or without port
         sub_filter '"http://' '"https://';
+        sub_filter "'http://" "'https://";
+        sub_filter '>http://' '>https://';
+        sub_filter ' http://' ' https://';
         
         # Inject VITE environment variables for NeMo Studio
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
