@@ -253,7 +253,8 @@ cat >> "$NGINX_CONF" << NGINX
         }
         
         # ─── Data Store routes (datastore.test equivalent) ───
-        # HuggingFace API
+        # HuggingFace API - LFS batch endpoint returns JSON with http:// URLs
+        # Must rewrite these to https:// to avoid mixed content errors
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -261,10 +262,16 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Accept-Encoding "";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             proxy_buffering off;
+            
+            # Rewrite http:// to https:// in JSON responses (LFS batch returns upload URLs)
+            sub_filter '"http://' '"https://';
+            sub_filter_once off;
+            sub_filter_types application/json application/vnd.git-lfs+json;
         }
         
         # ─── Default host routes (nemo.test equivalent) ───
@@ -477,6 +484,7 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Accept-Encoding "";
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_connect_timeout 60s;
@@ -487,6 +495,11 @@ cat >> "$NGINX_CONF" << NGINX
             # Rewrite http:// to https:// in Location headers (Git LFS redirects)
             proxy_redirect http://\$host/ https://\$host/;
             proxy_redirect http://\$host:\$server_port/ https://\$host/;
+            
+            # Rewrite http:// to https:// in JSON responses (LFS batch returns upload URLs)
+            sub_filter '"http://' '"https://';
+            sub_filter_once off;
+            sub_filter_types application/json application/vnd.git-lfs+json;
         }
     }
 }
