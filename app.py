@@ -633,7 +633,7 @@ def deploy_stream():
             
             # Handle legacy single API key
             if api_key and env_var:
-            env[env_var] = api_key
+                env[env_var] = api_key
             
             # Handle dynamic input fields - map each field to its env var
             if input_fields:
