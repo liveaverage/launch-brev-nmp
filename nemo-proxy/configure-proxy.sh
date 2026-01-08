@@ -173,6 +173,10 @@ cat >> "$NGINX_CONF" << NGINX
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         
+        # CRITICAL: Tell browser to upgrade all http:// requests to https://
+        # This handles Mixed Content errors from NeMo services returning http:// URLs
+        add_header Content-Security-Policy "upgrade-insecure-requests" always;
+        
         # Disable gzip for sub_filter
         proxy_set_header Accept-Encoding "";
         
