@@ -176,6 +176,18 @@ cat >> "$NGINX_CONF" << NGINX
         # Disable gzip for sub_filter to work on HTML
         proxy_set_header Accept-Encoding "";
         
+        # Rewrite internal NeMo hostnames to relative paths (HTML only, safe)
+        sub_filter 'http://nemo.test:3000' '';
+        sub_filter 'http://nim.test:3000' '';
+        sub_filter 'http://data-store.test:3000' '';
+        sub_filter 'http://entity-store.test:3000' '';
+        sub_filter 'http://nemo-platform.test:3000' '';
+        sub_filter 'https://nemo.test:3000' '';
+        sub_filter 'https://nim.test:3000' '';
+        sub_filter 'https://data-store.test:3000' '';
+        sub_filter 'https://entity-store.test:3000' '';
+        sub_filter 'https://nemo-platform.test:3000' '';
+        
         # Inject VITE environment variables for NeMo Studio (HTML only)
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
         # This works because nginx does path-based routing to the right backend
