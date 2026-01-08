@@ -255,6 +255,7 @@ cat >> "$NGINX_CONF" << NGINX
         # ─── Data Store routes (datastore.test equivalent) ───
         # HuggingFace API - LFS batch endpoint returns JSON with http:// URLs
         # Must rewrite these to https:// to avoid mixed content errors
+        # BUFFERING ENABLED: Prevents "unexpected EOF" errors with cloudflared
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -266,7 +267,13 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
-            proxy_buffering off;
+            
+            # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
+            proxy_buffering on;
+            proxy_buffer_size 128k;
+            proxy_buffers 8 256k;
+            proxy_busy_buffers_size 512k;
+            proxy_temp_file_write_size 512k;
             
             # Rewrite http:// to https:// in JSON responses (LFS batch returns upload URLs)
             sub_filter '"http://' '"https://';
@@ -477,6 +484,7 @@ cat >> "$NGINX_CONF" << NGINX
         # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
         # This catches Git LFS operations, HuggingFace API, and any other Data Store paths
         # Data Store returns http:// URLs - rewrite to https:// for browser compatibility
+        # BUFFERING ENABLED: Prevents "unexpected EOF" errors with cloudflared
         location / {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -490,7 +498,13 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
-            proxy_buffering off;
+            
+            # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
+            proxy_buffering on;
+            proxy_buffer_size 128k;
+            proxy_buffers 8 256k;
+            proxy_busy_buffers_size 512k;
+            proxy_temp_file_write_size 512k;
             
             # Rewrite http:// to https:// in Location headers (Git LFS redirects)
             proxy_redirect http://\$host/ https://\$host/;

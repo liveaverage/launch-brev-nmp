@@ -1103,8 +1103,8 @@
                     }
                 });
             } else {
-                document.getElementById('apiKey').disabled = true;
-                document.getElementById('apiKey').placeholder = 'Deployment already active';
+            document.getElementById('apiKey').disabled = true;
+            document.getElementById('apiKey').placeholder = 'Deployment already active';
             }
             
             versionSelect.disabled = true;
@@ -1140,8 +1140,8 @@
                     }
                 });
             } else {
-                document.getElementById('apiKey').disabled = false;
-                document.getElementById('apiKey').placeholder = 'nvapi-...';
+            document.getElementById('apiKey').disabled = false;
+            document.getElementById('apiKey').placeholder = 'nvapi-...';
             }
             
             versionSelect.disabled = false;
@@ -1199,7 +1199,7 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (helpModal.classList.contains('show')) {
-                    helpModal.classList.remove('show');
+                helpModal.classList.remove('show');
                 }
                 if (apiModal.classList.contains('show')) {
                     apiModal.classList.remove('show');

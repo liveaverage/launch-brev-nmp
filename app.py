@@ -633,7 +633,7 @@ def deploy_stream():
             
             # Handle legacy single API key
             if api_key and env_var:
-                env[env_var] = api_key
+            env[env_var] = api_key
             
             # Handle dynamic input fields - map each field to its env var
             if input_fields:
@@ -692,7 +692,7 @@ def deploy_stream():
                     
                     # Detect if this is a docker pull command for smart progress handling
                     is_docker_pull = 'pull' in normalized_cmd.lower()
-                    
+
                     # Stream output line by line
                     for line in iter(process.stdout.readline, ''):
                         if line:
@@ -719,7 +719,7 @@ def deploy_stream():
                                 yield emit_log({'type': 'output', 'message': stripped})
                     
                     process.wait()
-                    
+
                     if process.returncode != 0:
                         yield emit_log({'type': 'error', 'message': f'Pre-command failed with exit code {process.returncode}'})
                         deployment_state.finish('failed')
@@ -847,14 +847,14 @@ def deploy_stream():
                                 text=True,
                                 bufsize=1
                             )
-                            
+                        
                             # Stream output line by line
                             for line in iter(process.stdout.readline, ''):
                                 if line:
                                     yield emit_log({'type': 'output', 'message': line.rstrip()})
                             
                             process.wait()
-                            
+                        
                             if process.returncode != 0:
                                 yield emit_log({'type': 'warning', 'message': f'Post-command exited with code {process.returncode} (non-fatal)'})
                                 
@@ -886,9 +886,9 @@ def deploy_stream():
                 else:
                     resolved_services = []
                     # Default NeMo links if no services defined
-                    yield emit_log({'type': 'success', 'message': 'NeMo Microservices are now running.'})
-                    yield emit_log({'type': 'link', 'message': 'Open NeMo Studio', 'url': '/studio'})
-                    yield emit_log({'type': 'link', 'message': 'View Deployment Status', 'url': '/interlude'})
+                yield emit_log({'type': 'success', 'message': 'NeMo Microservices are now running.'})
+                yield emit_log({'type': 'link', 'message': 'Open NeMo Studio', 'url': '/studio'})
+                yield emit_log({'type': 'link', 'message': 'View Deployment Status', 'url': '/interlude'})
 
                 # Save persistent state on success
                 save_persistent_state({
@@ -968,7 +968,7 @@ def deploy():
         
         # Handle legacy single API key
         if api_key and env_var:
-            env[env_var] = api_key
+        env[env_var] = api_key
         
         # Handle dynamic input fields - map each field to its env var
         if input_fields:
@@ -990,7 +990,7 @@ def deploy():
                 """Mask API keys and passwords in commands"""
                 # Mask legacy API key
                 if api_key:
-                    masked = cmd_str.replace(api_key, '***')
+                masked = cmd_str.replace(api_key, '***')
                 else:
                     masked = cmd_str
                 # Mask dynamic input fields
