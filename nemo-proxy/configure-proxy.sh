@@ -188,9 +188,14 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter 'https://entity-store.test:3000' '';
         sub_filter 'https://nemo-platform.test:3000' '';
         
-        # Rewrite http:// to https:// in JSON responses (for API URLs)
-        # Only target double-quoted URLs to avoid breaking SVGs and other content
+        # Rewrite http:// to https:// in API responses
+        # Target double-quoted URLs in JSON and JS to avoid breaking SVGs
         sub_filter '"http://' '"https://';
+        sub_filter "'http://" "'https://";
+        
+        # Also add proxy_redirect to fix Location headers from upstream
+        proxy_redirect http://\$host/ https://\$host/;
+        proxy_redirect http://\$host:\$server_port/ https://\$host/;
         
         # Inject VITE environment variables for NeMo Studio
         # ALL URLs point to SAME ORIGIN to avoid CORS entirely
@@ -198,7 +203,7 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter '</head>' '<script>(function(){var b=window.location.origin;window.VITE_PLATFORM_BASE_URL=b;window.VITE_ENTITY_STORE_MICROSERVICE_URL=b;window.VITE_NIM_PROXY_URL=b;window.VITE_DATA_STORE_URL=b;window.VITE_BASE_URL=b;console.log("[Interlude] Single-origin mode:",b);})();</script></head>';
         
         sub_filter_once off;
-        sub_filter_types text/html application/json;
+        sub_filter_types text/html application/json application/javascript text/javascript;
         
         # ─── Deployment UI (Flask SPA) ───
         # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
