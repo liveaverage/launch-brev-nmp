@@ -54,28 +54,13 @@ STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 JUPYTER=$(kubectl get svc -n jupyter jupyter-svc -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
 [ -n "$JUPYTER" ] && JUPYTER="${JUPYTER}:8888"
 
-# Fallback to ingress if services not found directly
-INGRESS_BACKEND="127.0.0.1:80"
-if kubectl get daemonset -n ingress nginx-ingress-microk8s-controller &>/dev/null; then
-    INGRESS_BACKEND="127.0.0.1:80"
-elif kubectl get svc -n ingress-nginx ingress-nginx-controller &>/dev/null; then
-    INGRESS_BACKEND=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.spec.clusterIP}'):80
+# Warn if critical services are missing (deployment may still be in progress)
+if [ -z "$DATA_STORE" ]; then
+    echo "   ⚠️ WARNING: Data Store not found - dataset uploads will fail"
 fi
-
-# Use ingress as fallback for any missing backends
-[ -z "$NIM_PROXY" ] && NIM_PROXY="$INGRESS_BACKEND"
-[ -z "$DATA_STORE" ] && DATA_STORE="$INGRESS_BACKEND"
-[ -z "$ENTITY_STORE" ] && ENTITY_STORE="$INGRESS_BACKEND"
-[ -z "$CUSTOMIZER" ] && CUSTOMIZER="$INGRESS_BACKEND"
-[ -z "$EVALUATOR" ] && EVALUATOR="$INGRESS_BACKEND"
-[ -z "$GUARDRAILS" ] && GUARDRAILS="$INGRESS_BACKEND"
-[ -z "$DEPLOYMENT_MGMT" ] && DEPLOYMENT_MGMT="$INGRESS_BACKEND"
-[ -z "$DATA_DESIGNER" ] && DATA_DESIGNER="$INGRESS_BACKEND"
-[ -z "$AUDITOR" ] && AUDITOR="$INGRESS_BACKEND"
-[ -z "$SAFE_SYNTHESIZER" ] && SAFE_SYNTHESIZER="$INGRESS_BACKEND"
-[ -z "$CORE_API" ] && CORE_API="$INGRESS_BACKEND"
-[ -z "$INTAKE" ] && INTAKE="$INGRESS_BACKEND"
-[ -z "$STUDIO" ] && STUDIO="$INGRESS_BACKEND"
+if [ -z "$STUDIO" ]; then
+    echo "   ⚠️ WARNING: Studio not found - /studio will return 502"
+fi
 
 echo ""
 echo "   Discovered services (per NVIDIA docs):"
@@ -94,20 +79,24 @@ echo "   Core API:        $CORE_API"
 echo "   Intake:          $INTAKE"
 echo "   Studio:          $STUDIO"
 echo "   Jupyter:         ${JUPYTER:-not deployed}"
-echo "   Ingress:         $INGRESS_BACKEND (fallback)"
+echo ""
+echo "   Fallback (/*):   Data Store (per NVIDIA docs)"
 
 echo "🔧 Writing nginx.conf (post-deployment mode with path-based routing)..."
 
 cat > "$NGINX_CONF" << NGINX
 # NeMo Reverse Proxy - POST-DEPLOYMENT MODE (Single-Origin Path Routing)
+# After deployment, Flask SPA moves to /interlude only. Root goes to Data Store.
+#
 # Routes:
-#   /                                   → Flask SPA (deployment UI at root)
-#   $LAUNCHER_PATH/*                    → Flask SPA (alias)
+#   $LAUNCHER_PATH/*                    → Flask SPA (deployment UI)
+#   /studio/*                           → NeMo Studio
+#   /jupyter/*                          → Jupyter (optional)
 #   /v1/completions, /v1/chat, etc.     → NIM Proxy
 #   /v1/hf/*                            → Data Store
 #   /v1/*                               → Entity Store (NeMo Platform)
-#   /studio/*                           → NeMo Studio
-#   /jupyter/*                          → Jupyter (optional)
+#   /*                                  → Data Store (fallback for Git LFS, etc.)
+#
 # Generated: $(date -Iseconds)
 
 worker_processes auto;
@@ -151,8 +140,6 @@ http {
     upstream core_api { server $CORE_API; }
     upstream intake { server $INTAKE; }
     upstream studio { server $STUDIO; }
-    
-    upstream ingress_fallback { server $INGRESS_BACKEND; }
     
     # Jupyter (optional - deployed separately)
 NGINX
@@ -203,33 +190,10 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter_types text/html text/javascript application/javascript application/json text/plain *;
         
         # ─── Deployment UI (Flask SPA) ───
-        # Accessible at both root / and $LAUNCHER_PATH
+        # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
+        # Root (/) now goes to Data Store for Git LFS operations
         
-        # Root path serves Flask SPA (deployment UI always accessible)
-        location = / {
-            proxy_pass http://flask_backend;
-            proxy_http_version 1.1;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-        }
-        
-        # Flask API endpoints at root level
-        location ~ ^/(config|help|deploy|state|uninstall|assets) {
-            proxy_pass http://flask_backend;
-            proxy_http_version 1.1;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            # SSE support
-            proxy_buffering off;
-            proxy_cache off;
-            proxy_read_timeout 86400s;
-        }
-        
-        # Deployment UI also at $LAUNCHER_PATH (alias)
+        # Flask SPA at $LAUNCHER_PATH
         location $LAUNCHER_PATH {
             rewrite ^$LAUNCHER_PATH(.*)\$ /\$1 break;
             proxy_pass http://flask_backend;
@@ -290,25 +254,6 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             proxy_buffering off;
-        }
-        
-        # Git LFS endpoints for dataset uploads: /<namespace>/<repo>.git/...
-        # Data Store returns http:// URLs in LFS batch responses - rewrite to https://
-        location ~ ^/[^/]+/[^/]+\.git(/|$) {
-            proxy_pass http://data_store;
-            proxy_http_version 1.1;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_connect_timeout 60s;
-            proxy_send_timeout 600s;
-            proxy_read_timeout 600s;
-            proxy_buffering off;
-            
-            # Rewrite http:// to https:// in Location headers
-            proxy_redirect http://\$host/ https://\$host/;
-            proxy_redirect http://\$host:\$server_port/ https://\$host/;
         }
         
         # ─── Default host routes (nemo.test equivalent) ───
@@ -511,9 +456,11 @@ fi
 
 cat >> "$NGINX_CONF" << NGINX
         
-        # Fallback: Everything else goes to ingress
+        # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
+        # This catches Git LFS operations, HuggingFace API, and any other Data Store paths
+        # Data Store returns http:// URLs - rewrite to https:// for browser compatibility
         location / {
-            proxy_pass http://ingress_fallback;
+            proxy_pass http://data_store;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -522,9 +469,13 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_connect_timeout 60s;
-            proxy_send_timeout 300s;
-            proxy_read_timeout 300s;
+            proxy_send_timeout 600s;
+            proxy_read_timeout 600s;
             proxy_buffering off;
+            
+            # Rewrite http:// to https:// in Location headers (Git LFS redirects)
+            proxy_redirect http://\$host/ https://\$host/;
+            proxy_redirect http://\$host:\$server_port/ https://\$host/;
         }
     }
 }
@@ -567,7 +518,14 @@ else
 fi
 
 echo ""
-echo "✅ Reverse proxy configured (single-origin path-based routing)"
+echo "✅ Reverse proxy configured (POST-DEPLOYMENT mode)"
+echo ""
+echo "   Routing:"
+echo "   ├─ $LAUNCHER_PATH/*  → Flask SPA (deployment status)"
+echo "   ├─ /studio/*         → NeMo Studio"
+echo "   ├─ /jupyter/*        → Jupyter (if deployed)"
+echo "   ├─ /v1/*, /v2/*      → NeMo API services"
+echo "   └─ /*                → Data Store (Git LFS, fallback)"
 echo ""
 echo "   All routes same origin - no CORS needed!"
 echo ""
