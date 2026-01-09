@@ -51,11 +51,11 @@ spec:
                   sleep 2
                 done
                 
-                # Install as jovyan user so packages go to conda env
+                # Install Data Designer dependencies
                 echo "Installing Data Designer dependencies..."
-                su - jovyan -c "/opt/conda/bin/pip install /home/jovyan/work/repo/nemo/NeMo-Data-Designer/ || true"
+                pip install /home/jovyan/work/repo/nemo/NeMo-Data-Designer/ || echo "⚠️ Data Designer install failed"
                 echo "Installing additional packages..."
-                su - jovyan -c "/opt/conda/bin/pip install pandas datasets rich pillow || true"
+                pip install pandas datasets rich pillow || echo "⚠️ Additional packages install failed"
                 
                 # Forward localhost:8080 to host nginx (running in Docker on the host)
                 echo "Setting up localhost:8080 forwarding..."
@@ -97,9 +97,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "250m"
+            ephemeral-storage: "1Gi"
           limits:
             memory: "2Gi"
             cpu: "2000m"
+            ephemeral-storage: "2Gi"
         readinessProbe:
           httpGet:
             path: /jupyter/api

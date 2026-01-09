@@ -1501,10 +1501,10 @@
                     streamOutput.appendChild(line);
                     return;
                 case 'complete':
-                    // On completion, redirect to /interlude for clean state
-                    // This ensures history mode is properly entered with services visible
+                    // On completion, redirect to launcher path (not root)
+                    // After deployment, nginx routes / to Data Store, so go to /interlude
                     setTimeout(() => {
-                        window.location.href = apiUrl('/');
+                        window.location.href = '/interlude/';
                     }, 1500);
                     return;
             }
