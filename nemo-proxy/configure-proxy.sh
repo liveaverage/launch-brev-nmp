@@ -266,9 +266,9 @@ cat >> "$NGINX_CONF" << NGINX
         }
         
         # ─── Data Store routes (datastore.test equivalent) ───
-        # HuggingFace API - LFS batch endpoint returns JSON with http:// URLs
-        # Must rewrite these to https:// to avoid mixed content errors
-        # BUFFERING ENABLED: Prevents "unexpected EOF" errors with cloudflared
+        # HuggingFace API - file downloads, LFS operations
+        # NOTE: sub_filter disabled for file downloads - causes cloudflared EOF issues
+        # The LFS batch API (POST) needs sub_filter, but GET file downloads don't
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -276,28 +276,18 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_set_header Accept-Encoding "";
             proxy_set_header Connection "";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             
-            # Retry on connection errors (helps with flaky Data Store)
+            # Retry on connection errors
             proxy_next_upstream error timeout http_502 http_503;
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
-            # Enable buffering to prevent cloudflared "unexpected EOF" on slow responses
-            proxy_buffering on;
-            proxy_buffer_size 128k;
-            proxy_buffers 8 256k;
-            proxy_busy_buffers_size 512k;
-            proxy_temp_file_write_size 512k;
-            
-            # Rewrite http:// to https:// in JSON responses (LFS batch returns upload URLs)
-            sub_filter '"http://' '"https://';
-            sub_filter_once off;
-            sub_filter_types application/json application/vnd.git-lfs+json;
+            # Stream files directly without buffering (better for large files)
+            proxy_buffering off;
         }
         
         # ─── Default host routes (nemo.test equivalent) ───
@@ -501,8 +491,8 @@ fi
 cat >> "$NGINX_CONF" << NGINX
         
         # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
-        # This catches Git LFS operations, HuggingFace API, and any other Data Store paths
-        # Data Store returns http:// URLs - rewrite to https:// for browser compatibility
+        # This catches Git LFS operations and file downloads
+        # NOTE: sub_filter and buffering disabled - they cause cloudflared EOF issues
         location / {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -510,36 +500,24 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_set_header Accept-Encoding "";
-            # Conditional WebSocket support: "upgrade" only when Upgrade header present
-            # Empty string for regular HTTP (fixes cloudflared "unexpected EOF")
+            # Conditional WebSocket support
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection \$connection_upgrade;
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
             
-            # Retry on connection errors (helps with flaky Data Store)
+            # Retry on connection errors
             proxy_next_upstream error timeout http_502 http_503;
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
-            # Enable BOTH request and response buffering for cloudflared
-            proxy_request_buffering on;
-            proxy_buffering on;
-            proxy_buffer_size 128k;
-            proxy_buffers 8 256k;
-            proxy_busy_buffers_size 512k;
-            proxy_temp_file_write_size 512k;
+            # Stream directly without buffering
+            proxy_buffering off;
             
             # Rewrite http:// to https:// in Location headers (Git LFS redirects)
             proxy_redirect http://\$host/ https://\$host/;
             proxy_redirect http://\$host:\$server_port/ https://\$host/;
-            
-            # Rewrite http:// to https:// in JSON responses (LFS batch returns upload URLs)
-            sub_filter '"http://' '"https://';
-            sub_filter_once off;
-            sub_filter_types application/json application/vnd.git-lfs+json;
         }
     }
 }
