@@ -29,11 +29,16 @@ spec:
         ports:
         - containerPort: 8888
           name: http
-        # Install nemo-microservices SDK on container start
+        # Install nemo-microservices SDK and Data Designer dependencies on container start
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/sh", "-c", "pip install --quiet nemo-microservices || true"]
+              command: 
+              - /bin/sh
+              - -c
+              - |
+                pip install --quiet nemo-microservices || true
+                pip install --quiet "git+https://github.com/NVIDIA/GenerativeAIExamples.git#subdirectory=nemo/NeMo-Data-Designer" || true
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"

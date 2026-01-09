@@ -59,11 +59,12 @@ http {
     keepalive_timeout 65;
     
     upstream flask_backend {
-        server 127.0.0.1:8080;
+        server 127.0.0.1:5000;
     }
     
     server {
         listen $HTTP_PORT;
+        listen 8080;  # Additional port for notebook compatibility
         listen $HTTPS_PORT ssl;
         server_name _;
         
@@ -143,7 +144,7 @@ fi
 echo "   ✓ nginx config OK"
 
 # Start Flask FIRST (internal, not exposed directly)
-echo "🚀 Starting Flask SPA on :8080 (internal)..."
+echo "🚀 Starting Flask SPA on :5000 (internal)..."
 cd /app
 python app.py &
 FLASK_PID=$!
@@ -151,7 +152,7 @@ FLASK_PID=$!
 # Wait for Flask to be ready
 echo "   Waiting for Flask..."
 for i in {1..30}; do
-    if curl -s http://127.0.0.1:8080/ > /dev/null 2>&1; then
+    if curl -s http://127.0.0.1:5000/ > /dev/null 2>&1; then
         echo "   ✓ Flask ready"
         break
     fi

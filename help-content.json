@@ -45,6 +45,11 @@
       "title": "Security Note",
       "icon": "🔒",
       "content": "Your NGC API key is:\n• Passed as an environment variable to the deployment process\n• NOT stored permanently by this application\n• Used to authenticate with NGC registries\n• Configured as a Kubernetes secret (for Helm) or environment variable (for Docker Compose)\n\nNever share your API key or commit it to version control."
+    },
+    {
+      "title": "Links",
+      "icon": "🔗",
+      "content": "**Documentation & Resources:**\n\n• **NeMo Microservices Docs** - https://docs.nvidia.com/nemo/microservices/latest/\n• **Python SDK Reference** - https://docs.nvidia.com/nemo/microservices/latest/pysdk/index.html\n• **NGC API Key Setup** - https://org.ngc.nvidia.com/setup/api-key\n• **GenerativeAI Examples** - https://github.com/NVIDIA/GenerativeAIExamples"
     }
   ]
 }

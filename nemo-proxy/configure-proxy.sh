@@ -6,7 +6,7 @@ set -e
 NAMESPACE="${NAMESPACE:-nemo}"
 NGINX_CONF="${NGINX_CONF:-/app/nginx.conf}"
 LAUNCHER_PATH="${LAUNCHER_PATH:-/interlude}"
-FLASK_BACKEND="${FLASK_BACKEND:-127.0.0.1:8080}"
+FLASK_BACKEND="${FLASK_BACKEND:-127.0.0.1:5000}"
 HTTP_PORT="${HTTP_PORT:-9090}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
@@ -177,6 +177,7 @@ cat >> "$NGINX_CONF" << NGINX
     
     server {
         listen $HTTP_PORT;
+        listen 8080;  # Additional port for notebook compatibility
         listen $HTTPS_PORT ssl;
         server_name _;
         
