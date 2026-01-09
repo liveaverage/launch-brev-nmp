@@ -56,8 +56,8 @@
       },
       {
         "name": "Jupyter Notebooks",
-        "url": "/jupyter/lab",
-        "description": "NVIDIA GenerativeAI examples and notebooks"
+        "url": "/jupyter/lab/tree/repo/nemo/NeMo-Data-Designer/self-hosted-tutorials/getting-started/1-the-basics.ipynb",
+        "description": "Data Designer getting started tutorial"
       },
       {
         "name": "Deployment Status",
@@ -109,8 +109,8 @@
       },
       {
         "name": "Jupyter Notebooks",
-        "url": "/jupyter/lab",
-        "description": "NVIDIA GenerativeAI examples and notebooks"
+        "url": "/jupyter/lab/tree/repo/nemo/NeMo-Data-Designer/self-hosted-tutorials/getting-started/1-the-basics.ipynb",
+        "description": "Data Designer getting started tutorial"
       },
       {
         "name": "Deployment Status",
