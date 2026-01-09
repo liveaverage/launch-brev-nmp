@@ -145,11 +145,9 @@ http {
     upstream nim_proxy { server $NIM_PROXY; }
     
     # Data Store host services (with keepalive for connection reuse)
+    # Data Store - disable keepalive (Gitea closes connections prematurely with keep-alive)
     upstream data_store {
         server $DATA_STORE;
-        keepalive 32;
-        keepalive_requests 1000;
-        keepalive_timeout 60s;
     }
     
     # Default host services
@@ -276,7 +274,7 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Accept-Encoding "";
-            proxy_set_header Connection "";
+            proxy_set_header Connection "close";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
@@ -300,13 +298,14 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_set_header Connection "";
+            # Force new connection per request (Gitea closes keep-alive connections prematurely)
+            proxy_set_header Connection "close";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             
-            # Retry on connection errors
-            proxy_next_upstream error timeout http_502 http_503;
+            # Retry on connection errors (including premature close)
+            proxy_next_upstream error timeout http_502 http_503 http_504;
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
@@ -524,7 +523,7 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
             proxy_set_header Accept-Encoding "";
-            proxy_set_header Connection "";
+            proxy_set_header Connection "close";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
@@ -549,15 +548,14 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            # Conditional WebSocket support
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection \$connection_upgrade;
+            # Force close - Gitea doesn't handle keep-alive well for file downloads
+            proxy_set_header Connection "close";
             proxy_connect_timeout 60s;
             proxy_send_timeout 600s;
             proxy_read_timeout 600s;
             
-            # Retry on connection errors
-            proxy_next_upstream error timeout http_502 http_503;
+            # Retry on connection errors (including premature close)
+            proxy_next_upstream error timeout http_502 http_503 http_504;
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
