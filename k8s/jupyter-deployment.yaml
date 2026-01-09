@@ -30,6 +30,7 @@ spec:
         - containerPort: 8888
           name: http
         # Install nemo-microservices SDK and Data Designer dependencies on container start
+        # Also set up localhost:8080 forwarding to host nginx for notebook compatibility
         lifecycle:
           postStart:
             exec:
@@ -38,7 +39,15 @@ spec:
               - -c
               - |
                 pip install --quiet nemo-microservices || true
-                pip install --quiet "git+https://github.com/NVIDIA/GenerativeAIExamples.git#subdirectory=nemo/NeMo-Data-Designer" || true
+                pip install --quiet "https://github.com/NVIDIA/GenerativeAIExamples/archive/refs/heads/main.zip#subdirectory=nemo/NeMo-Data-Designer" || true
+                # Forward localhost:8080 to host nginx (default gateway is typically the host)
+                HOST_IP=$(ip route | grep default | awk '{print $3}')
+                if command -v socat >/dev/null 2>&1; then
+                  nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 > /dev/null 2>&1 &
+                else
+                  apt-get update -qq && apt-get install -y -qq socat >/dev/null 2>&1
+                  nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 > /dev/null 2>&1 &
+                fi
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
