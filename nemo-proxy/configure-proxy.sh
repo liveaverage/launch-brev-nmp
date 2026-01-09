@@ -186,6 +186,10 @@ cat >> "$NGINX_CONF" << NGINX
         listen $HTTPS_PORT ssl;
         server_name _;
         
+        # Prevent nginx from adding :port to redirects
+        absolute_redirect off;
+        port_in_redirect off;
+        
         ssl_certificate /app/certs/server.crt;
         ssl_certificate_key /app/certs/server.key;
         ssl_protocols TLSv1.2 TLSv1.3;
@@ -227,7 +231,7 @@ cat >> "$NGINX_CONF" << NGINX
         
         # Flask SPA at /interlude (prefix match, handles /interlude and /interlude/*)
         location /interlude {
-            rewrite ^/interlude(.*)\$ \$1 break;
+            # Don't strip /interlude from path, Flask needs to see it
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
