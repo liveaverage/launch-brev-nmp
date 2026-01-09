@@ -37,23 +37,62 @@ spec:
               - /bin/sh
               - -c
               - |
+                LOGFILE=/tmp/jupyter-poststart.log
+                exec >> "$LOGFILE" 2>&1
+                echo "=== Jupyter postStart: $(date) ==="
+                
                 # Wait for repo to be cloned (container entrypoint clones GITHUB_REPO)
+                echo "Waiting for NeMo-Data-Designer repo..."
                 for i in $(seq 1 30); do
-                  [ -f /home/jovyan/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ] && break
+                  if [ -f /home/jovyan/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ]; then
+                    echo "Found pyproject.toml after ${i} attempts"
+                    break
+                  fi
                   sleep 2
                 done
+                
                 # Install as jovyan user so packages go to conda env
-                su - jovyan -c "/opt/conda/bin/pip install --quiet /home/jovyan/work/repo/nemo/NeMo-Data-Designer/ || true"
-                su - jovyan -c "/opt/conda/bin/pip install --quiet pandas datasets rich pillow || true"
-                # Forward localhost:8080 to host nginx (socat already in image)
-                HOST_IP=$(ip route | grep default | awk '{print $3}')
-                nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 > /dev/null 2>&1 &
+                echo "Installing Data Designer dependencies..."
+                su - jovyan -c "/opt/conda/bin/pip install /home/jovyan/work/repo/nemo/NeMo-Data-Designer/ || true"
+                echo "Installing additional packages..."
+                su - jovyan -c "/opt/conda/bin/pip install pandas datasets rich pillow || true"
+                
+                # Forward localhost:8080 to host nginx (running in Docker on the host)
+                echo "Setting up localhost:8080 forwarding..."
+                if [ -n "$K8S_NODE_IP" ]; then
+                  HOST_IP="$K8S_NODE_IP"
+                  echo "Using Kubernetes node IP: ${HOST_IP}"
+                  # Test connectivity before starting socat
+                  if curl -sf --connect-timeout 2 http://${HOST_IP}:8080 -o /dev/null; then
+                    echo "✓ Node IP ${HOST_IP}:8080 is reachable"
+                  else
+                    echo "⚠️ Node IP ${HOST_IP}:8080 not reachable, trying gateway fallback"
+                    GATEWAY_HEX=$(awk '$2 == "00000000" {print $3}' /proc/net/route | head -1)
+                    HOST_IP=$(printf '%d.%d.%d.%d' 0x${GATEWAY_HEX:6:2} 0x${GATEWAY_HEX:4:2} 0x${GATEWAY_HEX:2:2} 0x${GATEWAY_HEX:0:2})
+                    echo "Fallback to gateway IP: ${HOST_IP}"
+                  fi
+                else
+                  # Fallback: try gateway IP
+                  GATEWAY_HEX=$(awk '$2 == "00000000" {print $3}' /proc/net/route | head -1)
+                  HOST_IP=$(printf '%d.%d.%d.%d' 0x${GATEWAY_HEX:6:2} 0x${GATEWAY_HEX:4:2} 0x${GATEWAY_HEX:2:2} 0x${GATEWAY_HEX:0:2})
+                  echo "Fallback to gateway IP: ${HOST_IP}"
+                fi
+                nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 >> "$LOGFILE" 2>&1 &
+                echo "Socat PID: $!"
+                
+                echo "=== postStart complete: $(date) ==="
+                echo "View this log: kubectl exec -n jupyter deploy/jupyter -- cat /tmp/jupyter-poststart.log"
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
         # Base URL for reverse proxy subpath routing
         - name: JUPYTER_BASE_URL
           value: "/jupyter"
+        # Inject the Kubernetes node IP (where host nginx is running)
+        - name: K8S_NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
         resources:
           requests:
             memory: "512Mi"

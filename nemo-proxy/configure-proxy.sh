@@ -218,23 +218,16 @@ cat >> "$NGINX_CONF" << NGINX
         
         # Redirect exact root to launcher UI
         location = / {
-            return 302 $LAUNCHER_PATH;
+            return 302 $LAUNCHER_PATH/;
         }
         
-        # Flask SPA at $LAUNCHER_PATH
-        location $LAUNCHER_PATH {
-            rewrite ^$LAUNCHER_PATH(.*)\$ /\$1 break;
-            proxy_pass http://flask_backend;
-            proxy_http_version 1.1;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_set_header X-Script-Name $LAUNCHER_PATH;
+        # Redirect /interlude (no slash) to /interlude/
+        location = $LAUNCHER_PATH {
+            return 302 $LAUNCHER_PATH/;
         }
         
-        # Flask API endpoints under $LAUNCHER_PATH
-        location ~ ^$LAUNCHER_PATH/(config|help|deploy|state|uninstall|assets) {
+        # Flask SPA at $LAUNCHER_PATH/ (with trailing slash for prefix match)
+        location $LAUNCHER_PATH/ {
             rewrite ^$LAUNCHER_PATH(.*)\$ \$1 break;
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;

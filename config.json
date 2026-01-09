@@ -75,7 +75,7 @@
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set studio.platformBaseUrl=\"${PLATFORM_URL}\" --set studio.entityStoreUrl=\"${PLATFORM_URL}\" --set studio.nimProxyUrl=\"${PLATFORM_URL}\" --set studio.dataStoreUrl=\"${PLATFORM_URL}\" --set ingress.hosts.default.name=\"${INGRESS_HOST}\" --set ingress.hosts.nimProxy.name=\"${INGRESS_HOST}\" --set ingress.hosts.dataStore.name=\"${INGRESS_HOST}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
     "post_commands": [
-      "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
+      "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
       "echo '⏳ Waiting for Jupyter pod...' && kubectl wait --for=condition=ready pod -l app=jupyter -n jupyter --timeout=120s 2>/dev/null || echo '   (Jupyter still starting, will be available shortly)'",
       "bash nemo-proxy/configure-proxy.sh",
       "bash scripts/deploy-default-nim.sh"
@@ -85,7 +85,7 @@
       "echo '🗑️ Uninstalling NeMo Microservices...'",
       "helm uninstall nemo-microservices --namespace nemo || true",
       "kubectl delete namespace nemo --timeout=60s || true",
-      "echo '📓 Uninstalling Jupyter...' && kubectl delete -f https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/k8s/jupyter-deployment.yaml 2>/dev/null || true",
+      "echo '📓 Uninstalling Jupyter...' && kubectl delete -f k8s/jupyter-deployment.yaml 2>/dev/null || true",
       "echo '✓ Uninstall complete'"
     ],
     "log_sources": [
@@ -125,7 +125,7 @@
     ],
     "command": "helm install nemo-microservices ./nemo-microservices-helm-chart --set ngcAPIKey=\"${NGC_API_KEY}\" --set existingSecret=\"\" --set existingImagePullSecret=\"\" --set studio.platformBaseUrl=\"${PLATFORM_URL}\" --set studio.entityStoreUrl=\"${PLATFORM_URL}\" --set studio.nimProxyUrl=\"${PLATFORM_URL}\" --set studio.dataStoreUrl=\"${PLATFORM_URL}\" --set ingress.hosts.default.name=\"${INGRESS_HOST}\" --set ingress.hosts.nimProxy.name=\"${INGRESS_HOST}\" --set ingress.hosts.dataStore.name=\"${INGRESS_HOST}\" --set tags.auditor=true --set tags.studio=true --set tags.safe-synthesizer=true --create-namespace --namespace nemo",
     "post_commands": [
-      "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
+      "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
       "echo '⏳ Waiting for Jupyter pod...' && kubectl wait --for=condition=ready pod -l app=jupyter -n jupyter --timeout=120s 2>/dev/null || echo '   (Jupyter still starting, will be available shortly)'",
       "bash nemo-proxy/configure-proxy.sh",
       "bash scripts/deploy-default-nim.sh"
@@ -135,7 +135,7 @@
       "echo '🗑️ Uninstalling NeMo Microservices...'",
       "helm uninstall nemo-microservices --namespace nemo || true",
       "kubectl delete namespace nemo --timeout=90s || true",
-      "echo '📓 Uninstalling Jupyter...' && kubectl delete -f https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/k8s/jupyter-deployment.yaml 2>/dev/null || true",
+      "echo '📓 Uninstalling Jupyter...' && kubectl delete -f k8s/jupyter-deployment.yaml 2>/dev/null || true",
       "echo '✓ Uninstall complete'"
     ],
     "log_sources": [
