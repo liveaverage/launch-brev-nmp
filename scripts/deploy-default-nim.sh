@@ -50,29 +50,6 @@ echo ""
 # ═══════════════════════════════════════════════════════════════
 echo "📋 Step 1: Registering model in Entity Store..."
 
-curl --fail \
-    --connect-timeout 10 \
-    --max-time 30 \
-    --location "$DEPLOYMENT_URL/v1/deployment/model-deployments" \
-    -H 'accept: application/json' \
-    -H 'Content-Type: application/json' \
-    -d "{
-        \"name\": \"llama-3.1-8b-instruct-v2\",
-        \"namespace\": \"meta\",
-        \"config\": {
-          \"model\": \"meta/llama-3.1-8b-instruct-v2\",
-          \"nim_deployment\": {
-            \"image_name\": \"nvcr.io/nim/meta/llama-3.1-8b-instruct\",
-            \"image_tag\": \"1.8.3\",
-            \"pvc_size\": \"25Gi\",
-            \"gpu\": 1,
-            \"additional_envs\": {
-              \"NIM_GUIDED_DECODING_BACKEND\": \"fast_outlines\"
-            }
-          }
-        }
-      }"
-
 # Check if model already exists
 existing_model=$(curl -sf "${ENTITY_STORE_URL}/v1/models?namespace=${NIM_NAMESPACE}&name=${NIM_MODEL_NAME}" 2>/dev/null || echo '{"models":[]}')
 if echo "$existing_model" | grep -q "\"name\":\"${NIM_MODEL_NAME}\""; then
