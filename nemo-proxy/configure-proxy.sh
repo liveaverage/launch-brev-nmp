@@ -284,7 +284,16 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_buffer_size 16k;
             proxy_buffers 4 32k;
             
-            # Rewrite http:// to https:// in JSON responses
+            # Rewrite Location headers (Data Store returns localhost URLs)
+            proxy_redirect http://localhost/ https://\$host/;
+            proxy_redirect https://localhost/ https://\$host/;
+            proxy_redirect http://127.0.0.1/ https://\$host/;
+            proxy_redirect http://data-store.test/ https://\$host/;
+            
+            # Rewrite http:// to https:// in JSON responses (for download URLs)
+            sub_filter '"http://localhost' '"https://\$host';
+            sub_filter '"http://127.0.0.1' '"https://\$host';
+            sub_filter '"http://data-store.test' '"https://\$host';
             sub_filter '"http://' '"https://';
             sub_filter_once off;
             sub_filter_types application/json application/vnd.git-lfs+json;
@@ -308,6 +317,13 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_next_upstream error timeout http_502 http_503 http_504;
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
+            
+            # Rewrite Location headers (Data Store returns localhost URLs for LFS redirects)
+            proxy_redirect http://localhost/ https://\$host/;
+            proxy_redirect https://localhost/ https://\$host/;
+            proxy_redirect http://127.0.0.1/ https://\$host/;
+            proxy_redirect http://data-store.test/ https://\$host/;
+            proxy_redirect http://\$host/ https://\$host/;
             
             # Stream files directly without buffering
             proxy_buffering off;
@@ -533,7 +549,16 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_buffer_size 16k;
             proxy_buffers 4 32k;
             
-            # Rewrite http:// to https:// in JSON responses
+            # Rewrite Location headers (Data Store returns localhost URLs)
+            proxy_redirect http://localhost/ https://\$host/;
+            proxy_redirect https://localhost/ https://\$host/;
+            proxy_redirect http://127.0.0.1/ https://\$host/;
+            proxy_redirect http://data-store.test/ https://\$host/;
+            
+            # Rewrite localhost to external hostname in JSON responses
+            sub_filter '"http://localhost' '"https://\$host';
+            sub_filter '"http://127.0.0.1' '"https://\$host';
+            sub_filter '"http://data-store.test' '"https://\$host';
             sub_filter '"http://' '"https://';
             sub_filter_once off;
             sub_filter_types application/json application/vnd.git-lfs+json;
@@ -562,7 +587,14 @@ cat >> "$NGINX_CONF" << NGINX
             # Stream directly without buffering
             proxy_buffering off;
             
-            # Rewrite http:// to https:// in Location headers (Git LFS redirects)
+            # Rewrite Location headers (Git LFS redirects)
+            # Data Store returns localhost URLs that need to be rewritten to external hostname
+            proxy_redirect http://localhost/ https://\$host/;
+            proxy_redirect https://localhost/ https://\$host/;
+            proxy_redirect http://127.0.0.1/ https://\$host/;
+            proxy_redirect https://127.0.0.1/ https://\$host/;
+            proxy_redirect http://data-store.test/ https://\$host/;
+            proxy_redirect https://data-store.test/ https://\$host/;
             proxy_redirect http://\$host/ https://\$host/;
             proxy_redirect http://\$host:\$server_port/ https://\$host/;
         }
