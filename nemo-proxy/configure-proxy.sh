@@ -51,7 +51,12 @@ STUDIO=$(get_svc_endpoint "nemo-studio" "3000")
 
 # Jupyter (optional - in separate namespace)
 # Service named 'jupyter-svc' to avoid K8s JUPYTER_PORT env var collision
-JUPYTER=$(kubectl get svc -n jupyter jupyter-svc -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
+# Wait briefly for Jupyter service to be ready (deployed in post_commands)
+for i in {1..5}; do
+    JUPYTER=$(kubectl get svc -n jupyter jupyter-svc -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
+    [ -n "$JUPYTER" ] && break
+    sleep 1
+done
 [ -n "$JUPYTER" ] && JUPYTER="${JUPYTER}:8888"
 
 # Fallback for missing services - use a dummy backend that will return 502

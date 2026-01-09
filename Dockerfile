@@ -53,6 +53,7 @@ COPY help-content.json .
 COPY assets ./assets
 COPY nemo-proxy ./nemo-proxy
 COPY scripts ./scripts
+COPY k8s ./k8s
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh nemo-proxy/*.sh scripts/*.sh 2>/dev/null || true
 
