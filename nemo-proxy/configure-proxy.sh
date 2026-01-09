@@ -214,7 +214,12 @@ cat >> "$NGINX_CONF" << NGINX
         
         # ─── Deployment UI (Flask SPA) ───
         # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
-        # Root (/) now goes to Data Store for Git LFS operations
+        # Exact root (/) redirects to launcher, subpaths go to Data Store
+        
+        # Redirect exact root to launcher UI
+        location = / {
+            return 302 $LAUNCHER_PATH;
+        }
         
         # Flask SPA at $LAUNCHER_PATH
         location $LAUNCHER_PATH {
