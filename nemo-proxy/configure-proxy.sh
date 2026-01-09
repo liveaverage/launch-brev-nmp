@@ -267,8 +267,32 @@ cat >> "$NGINX_CONF" << NGINX
         
         # ─── Data Store routes (datastore.test equivalent) ───
         # HuggingFace API - file downloads, LFS operations
-        # NOTE: sub_filter disabled for file downloads - causes cloudflared EOF issues
-        # The LFS batch API (POST) needs sub_filter, but GET file downloads don't
+        # LFS Batch API (POST) - needs sub_filter to rewrite http:// URLs in JSON response
+        location ~ ^/v1/hf/.*/(info/lfs|lfs/objects/batch) {
+            proxy_pass http://data_store;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Accept-Encoding "";
+            proxy_set_header Connection "";
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            
+            # Enable buffering for sub_filter to work
+            proxy_buffering on;
+            proxy_buffer_size 16k;
+            proxy_buffers 4 32k;
+            
+            # Rewrite http:// to https:// in JSON responses
+            sub_filter '"http://' '"https://';
+            sub_filter_once off;
+            sub_filter_types application/json application/vnd.git-lfs+json;
+        }
+        
+        # HuggingFace/LFS file operations (GET) - stream without modification
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -286,7 +310,7 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_next_upstream_tries 3;
             proxy_next_upstream_timeout 30s;
             
-            # Stream files directly without buffering (better for large files)
+            # Stream files directly without buffering
             proxy_buffering off;
         }
         
@@ -490,9 +514,34 @@ fi
 
 cat >> "$NGINX_CONF" << NGINX
         
+        # ─── Git LFS Batch API at root level ───
+        # Matches: /<namespace>/<repo>.git/info/lfs/objects/batch
+        location ~ \.git/(info/lfs|lfs/objects/batch) {
+            proxy_pass http://data_store;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Accept-Encoding "";
+            proxy_set_header Connection "";
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+            
+            # Enable buffering for sub_filter to work
+            proxy_buffering on;
+            proxy_buffer_size 16k;
+            proxy_buffers 4 32k;
+            
+            # Rewrite http:// to https:// in JSON responses
+            sub_filter '"http://' '"https://';
+            sub_filter_once off;
+            sub_filter_types application/json application/vnd.git-lfs+json;
+        }
+        
         # ─── Fallback: Data Store (per NVIDIA docs, dataStore gets root path) ───
-        # This catches Git LFS operations and file downloads
-        # NOTE: sub_filter and buffering disabled - they cause cloudflared EOF issues
+        # This catches Git operations and file downloads (no URL rewriting needed)
         location / {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
