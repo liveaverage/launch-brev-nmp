@@ -222,12 +222,12 @@ cat >> "$NGINX_CONF" << NGINX
         }
         
         # Redirect /interlude (no slash) to /interlude/
-        location = $LAUNCHER_PATH {
-            return 302 $LAUNCHER_PATH/;
+        location = /interlude {
+            return 302 /interlude/;
         }
         
         # Flask SPA at $LAUNCHER_PATH/ (with trailing slash for prefix match)
-        location $LAUNCHER_PATH/ {
+        location /interlude/ {
             rewrite ^$LAUNCHER_PATH(.*)\$ \$1 break;
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
