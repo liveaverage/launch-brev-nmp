@@ -77,6 +77,7 @@
     "post_commands": [
       "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
       "echo '⏳ Waiting for Jupyter pod...' && kubectl wait --for=condition=ready pod -l app=jupyter -n jupyter --timeout=120s 2>/dev/null || echo '   (Jupyter still starting, will be available shortly)'",
+      "echo '🔧 Setting up Jupyter environment...' && bash scripts/setup-jupyter.sh",
       "bash nemo-proxy/configure-proxy.sh",
       "bash scripts/deploy-default-nim.sh"
     ],
@@ -127,6 +128,7 @@
     "post_commands": [
       "echo '📓 Deploying Jupyter with NVIDIA GenerativeAIExamples...' && kubectl apply -f k8s/jupyter-deployment.yaml && echo '   ✓ Jupyter deployed to namespace: jupyter'",
       "echo '⏳ Waiting for Jupyter pod...' && kubectl wait --for=condition=ready pod -l app=jupyter -n jupyter --timeout=120s 2>/dev/null || echo '   (Jupyter still starting, will be available shortly)'",
+      "echo '🔧 Setting up Jupyter environment...' && bash scripts/setup-jupyter.sh",
       "bash nemo-proxy/configure-proxy.sh",
       "bash scripts/deploy-default-nim.sh"
     ],

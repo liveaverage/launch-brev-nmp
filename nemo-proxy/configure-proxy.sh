@@ -218,29 +218,23 @@ cat >> "$NGINX_CONF" << NGINX
         sub_filter_types text/html;
         
         # ─── Deployment UI (Flask SPA) ───
-        # POST-DEPLOYMENT: Flask SPA only at $LAUNCHER_PATH
-        # Exact root (/) redirects to launcher, subpaths go to Data Store
+        # POST-DEPLOYMENT: Flask SPA at /interlude, root redirects there
         
-        # Redirect exact root to launcher UI
+        # Redirect root to interlude (simple, no trailing slash)
         location = / {
-            return 302 $LAUNCHER_PATH/;
+            return 302 /interlude;
         }
         
-        # Redirect /interlude (no slash) to /interlude/
-        location = /interlude {
-            return 302 /interlude/;
-        }
-        
-        # Flask SPA at $LAUNCHER_PATH/ (with trailing slash for prefix match)
-        location /interlude/ {
-            rewrite ^$LAUNCHER_PATH(.*)\$ \$1 break;
+        # Flask SPA at /interlude (prefix match, handles /interlude and /interlude/*)
+        location /interlude {
+            rewrite ^/interlude(.*)\$ \$1 break;
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_set_header X-Script-Name $LAUNCHER_PATH;
+            proxy_set_header X-Script-Name /interlude;
             # SSE support
             proxy_buffering off;
             proxy_cache off;

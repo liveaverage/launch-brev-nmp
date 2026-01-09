@@ -29,59 +29,6 @@ spec:
         ports:
         - containerPort: 8888
           name: http
-        # Install Data Designer deps and set up localhost:8080 forwarding
-        lifecycle:
-          postStart:
-            exec:
-              command: 
-              - /bin/sh
-              - -c
-              - |
-                LOGFILE=/tmp/jupyter-poststart.log
-                exec >> "$LOGFILE" 2>&1
-                echo "=== Jupyter postStart: $(date) ==="
-                
-                # Wait for repo to be cloned (container entrypoint clones GITHUB_REPO)
-                echo "Waiting for NeMo-Data-Designer repo..."
-                for i in $(seq 1 30); do
-                  if [ -f /home/jovyan/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ]; then
-                    echo "Found pyproject.toml after ${i} attempts"
-                    break
-                  fi
-                  sleep 2
-                done
-                
-                # Install Data Designer dependencies
-                echo "Installing Data Designer dependencies..."
-                pip install /home/jovyan/work/repo/nemo/NeMo-Data-Designer/ || echo "⚠️ Data Designer install failed"
-                echo "Installing additional packages..."
-                pip install pandas datasets rich pillow || echo "⚠️ Additional packages install failed"
-                
-                # Forward localhost:8080 to host nginx (running in Docker on the host)
-                echo "Setting up localhost:8080 forwarding..."
-                if [ -n "$K8S_NODE_IP" ]; then
-                  HOST_IP="$K8S_NODE_IP"
-                  echo "Using Kubernetes node IP: ${HOST_IP}"
-                  # Test connectivity before starting socat
-                  if curl -sf --connect-timeout 2 http://${HOST_IP}:8080 -o /dev/null; then
-                    echo "✓ Node IP ${HOST_IP}:8080 is reachable"
-                  else
-                    echo "⚠️ Node IP ${HOST_IP}:8080 not reachable, trying gateway fallback"
-                    GATEWAY_HEX=$(awk '$2 == "00000000" {print $3}' /proc/net/route | head -1)
-                    HOST_IP=$(printf '%d.%d.%d.%d' 0x${GATEWAY_HEX:6:2} 0x${GATEWAY_HEX:4:2} 0x${GATEWAY_HEX:2:2} 0x${GATEWAY_HEX:0:2})
-                    echo "Fallback to gateway IP: ${HOST_IP}"
-                  fi
-                else
-                  # Fallback: try gateway IP
-                  GATEWAY_HEX=$(awk '$2 == "00000000" {print $3}' /proc/net/route | head -1)
-                  HOST_IP=$(printf '%d.%d.%d.%d' 0x${GATEWAY_HEX:6:2} 0x${GATEWAY_HEX:4:2} 0x${GATEWAY_HEX:2:2} 0x${GATEWAY_HEX:0:2})
-                  echo "Fallback to gateway IP: ${HOST_IP}"
-                fi
-                nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 >> "$LOGFILE" 2>&1 &
-                echo "Socat PID: $!"
-                
-                echo "=== postStart complete: $(date) ==="
-                echo "View this log: kubectl exec -n jupyter deploy/jupyter -- cat /tmp/jupyter-poststart.log"
         env:
         - name: GITHUB_REPO
           value: "https://github.com/NVIDIA/GenerativeAIExamples.git"
@@ -97,11 +44,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "250m"
-            ephemeral-storage: "1Gi"
+            ephemeral-storage: "5Gi"
           limits:
             memory: "2Gi"
             cpu: "2000m"
-            ephemeral-storage: "2Gi"
+            ephemeral-storage: "10Gi"
         readinessProbe:
           httpGet:
             path: /jupyter/api
