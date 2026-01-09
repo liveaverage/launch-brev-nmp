@@ -119,7 +119,7 @@ else
                 \"gpu\": ${NIM_GPU},
                 \"pvc_size\": \"25Gi\",
                 \"additional_envs\": {
-                    \"NIM_GUIDED_DECODING_BACKEND\": \"fast_outlines\"
+                    \"NIM_GUIDED_DECODING_BACKEND\": \"auto\"
                 }
             }
         }" 2>&1)
