@@ -299,7 +299,9 @@ cat >> "$NGINX_CONF" << NGINX
             sub_filter_types application/json application/vnd.git-lfs+json;
         }
         
-        # HuggingFace/LFS file operations (GET) - stream without modification
+        # HuggingFace/LFS file operations (GET/HEAD) - handles 302 redirects internally
+        # Data Store bug: sends 302 with Content-Length of the file, but closes connection
+        # after sending redirect. We intercept 302s and follow them internally.
         location ~ ^/v1/hf {
             proxy_pass http://data_store;
             proxy_http_version 1.1;
@@ -307,25 +309,51 @@ cat >> "$NGINX_CONF" << NGINX
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto \$scheme;
-            # Force new connection per request (Gitea closes keep-alive connections prematurely)
             proxy_set_header Connection "close";
             proxy_connect_timeout 60s;
             proxy_send_timeout 300s;
             proxy_read_timeout 300s;
             
-            # Retry on connection errors (including premature close)
-            proxy_next_upstream error timeout http_502 http_503 http_504;
-            proxy_next_upstream_tries 3;
-            proxy_next_upstream_timeout 30s;
-            
-            # Rewrite Location headers (Data Store returns localhost URLs for LFS redirects)
-            proxy_redirect http://localhost/ https://\$host/;
-            proxy_redirect https://localhost/ https://\$host/;
-            proxy_redirect http://127.0.0.1/ https://\$host/;
-            proxy_redirect http://data-store.test/ https://\$host/;
-            proxy_redirect http://\$host/ https://\$host/;
+            # Intercept 302 redirects and handle them internally
+            # This works around the Data Store bug where 302 has wrong Content-Length
+            proxy_intercept_errors on;
+            error_page 302 = @follow_lfs_redirect;
             
             # Stream files directly without buffering
+            proxy_buffering off;
+        }
+        
+        # Internal location to follow LFS redirects
+        # Data Store returns 302 to /<namespace>/<repo>.git/info/lfs/objects/<oid>
+        # We extract the path and proxy to it directly
+        location @follow_lfs_redirect {
+            internal;
+            
+            # \$upstream_http_location contains the redirect URL from Data Store
+            # e.g., http://10.152.183.194:3000/default/repo.git/info/lfs/objects/<oid>
+            # or https://nmp0-xxx.brevlab.com/default/repo.git/info/lfs/objects/<oid>
+            set \$redirect_location \$upstream_http_location;
+            
+            # Extract just the path portion (strip scheme and host)
+            # nginx doesn't have built-in regex capture in set, so we use if
+            # The LFS path always starts with /<namespace>/<repo>.git/
+            if (\$redirect_location ~* "^https?://[^/]+(/.*)\$") {
+                set \$redirect_path \$1;
+            }
+            
+            # Proxy to the LFS object endpoint
+            proxy_pass http://data_store\$redirect_path;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Connection "close";
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 600s;
+            proxy_read_timeout 600s;
+            
+            # Stream the actual file content
             proxy_buffering off;
         }
         
