@@ -8,6 +8,7 @@ import time
 import threading
 import queue
 import re
+import select
 from dataclasses import dataclass, field
 from typing import Optional, List
 from datetime import datetime
@@ -848,10 +849,33 @@ def deploy_stream():
                                 bufsize=1
                             )
                         
-                            # Stream output line by line
-                            for line in iter(process.stdout.readline, ''):
-                                if line:
+                            # Stream output line by line with keepalive for silent commands
+                            last_output = time.time()
+                            keepalive_interval = 15  # Send keepalive every 15s if no output
+                            
+                            while True:
+                                # Check if output is available (non-blocking with 1s timeout)
+                                ready, _, _ = select.select([process.stdout], [], [], 1.0)
+                                
+                                if ready:
+                                    line = process.stdout.readline()
+                                    if not line:  # EOF
+                                        break
                                     yield emit_log({'type': 'output', 'message': line.rstrip()})
+                                    last_output = time.time()
+                                else:
+                                    # No output available, check if we need keepalive
+                                    if time.time() - last_output > keepalive_interval:
+                                        yield ": keepalive\n\n"
+                                        last_output = time.time()
+                                
+                                # Check if process finished
+                                if process.poll() is not None:
+                                    # Drain remaining output
+                                    for line in process.stdout:
+                                        if line:
+                                            yield emit_log({'type': 'output', 'message': line.rstrip()})
+                                    break
                             
                             process.wait()
                         
