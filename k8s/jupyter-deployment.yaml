@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: jupyter
-        image: ghcr.io/liveaverage/pyrrhus-jupyter:latest
+        image: ghcr.io/liveaverage/pyrrhus-jupyter:cuda-12.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8888
