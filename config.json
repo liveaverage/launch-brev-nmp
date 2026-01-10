@@ -112,11 +112,6 @@
         "name": "Jupyter Notebooks",
         "url": "/jupyter/lab/tree/repo/nemo/NeMo-Data-Designer/self-hosted-tutorials/getting-started/1-the-basics.ipynb",
         "description": "Data Designer getting started tutorial"
-      },
-      {
-        "name": "Deployment Status",
-        "url": "/interlude",
-        "description": "View deployment status and manage"
       }
     ],
     "pre_commands": [

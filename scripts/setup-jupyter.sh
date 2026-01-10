@@ -22,60 +22,21 @@ set -e
 echo "=== Jupyter Setup Script ==="
 echo "Starting at: $(date)"
 
-# Wait for repo to be cloned by entrypoint
-echo "Checking for NeMo-Data-Designer repo..."
-for i in $(seq 1 30); do
-  if [ -f /home/jovyan/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ] || \
-     [ -f /tmp/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ]; then
-    echo "✓ Found pyproject.toml after ${i} attempts"
-    break
-  fi
-  sleep 2
-done
-
-# Find the actual work directory
-if [ -f /home/jovyan/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ]; then
-  REPO_PATH="/home/jovyan/work/repo/nemo/NeMo-Data-Designer"
-elif [ -f /tmp/work/repo/nemo/NeMo-Data-Designer/pyproject.toml ]; then
-  REPO_PATH="/tmp/work/repo/nemo/NeMo-Data-Designer"
+# Verify socat forwarding is running (set up by lifecycle postStart hook)
+echo "Checking localhost:8080 forwarding..."
+if ps aux | grep -q "[s]ocat.*8080"; then
+  echo "✓ Socat is running"
+  ps aux | grep "[s]ocat.*8080"
 else
-  echo "⚠️ NeMo-Data-Designer not found, skipping package install"
-  REPO_PATH=""
+  echo "⚠️ Socat not running - may still be starting up"
 fi
 
-# Install packages
-if [ -n "$REPO_PATH" ]; then
-  echo "Installing Data Designer from: $REPO_PATH"
-  pip install "$REPO_PATH" || echo "⚠️ Data Designer install failed"
-fi
-
-echo "Installing additional packages..."
-pip install pandas datasets rich pillow || echo "⚠️ Additional packages install failed"
-
-# Set up localhost:8080 forwarding to host nginx
-echo "Setting up localhost:8080 forwarding..."
-if [ -n "$K8S_NODE_IP" ]; then
-  HOST_IP="$K8S_NODE_IP"
-  echo "Using Kubernetes node IP: ${HOST_IP}"
+# Test connectivity to host nginx
+if curl -sf --connect-timeout 2 http://localhost:8080 -o /dev/null 2>&1; then
+  echo "✓ localhost:8080 forwarding is working"
 else
-  # Fallback to gateway
-  GATEWAY_HEX=$(awk "\$2 == \"00000000\" {print \$3}" /proc/net/route | head -1)
-  HOST_IP=$(printf "%d.%d.%d.%d" 0x${GATEWAY_HEX:6:2} 0x${GATEWAY_HEX:4:2} 0x${GATEWAY_HEX:2:2} 0x${GATEWAY_HEX:0:2})
-  echo "Using gateway IP: ${HOST_IP}"
+  echo "⚠️ localhost:8080 not yet accessible"
 fi
-
-# Test connectivity
-if curl -sf --connect-timeout 2 http://${HOST_IP}:8080 -o /dev/null; then
-  echo "✓ Host nginx at ${HOST_IP}:8080 is reachable"
-else
-  echo "⚠️ Host nginx at ${HOST_IP}:8080 not reachable"
-fi
-
-# Start socat in background
-pkill socat 2>/dev/null || true
-nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 >/tmp/socat.log 2>&1 &
-SOCAT_PID=$!
-echo "✓ Socat forwarding started (PID: $SOCAT_PID)"
 
 echo "=== Setup complete at: $(date) ==="
 ' && echo "✅ Jupyter setup completed successfully!" || echo "⚠️ Setup completed with warnings"

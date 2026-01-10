@@ -40,6 +40,22 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - |
+                # Set up localhost:8080 forwarding to host nginx (runs in background)
+                # This enables Jupyter notebooks to access NeMo services via localhost:8080
+                (
+                  HOST_IP="${K8S_NODE_IP:-$(awk '$2 == "00000000" {print $3}' /proc/net/route | head -1 | xargs -I{} printf "%d.%d.%d.%d" 0x${{}:6:2} 0x${{}:4:2} 0x${{}:2:2} 0x${{}:0:2})}"
+                  echo "$(date): Starting socat forwarding to ${HOST_IP}:8080" >> /tmp/socat-setup.log
+                  pkill socat 2>/dev/null || true
+                  nohup socat TCP-LISTEN:8080,fork,reuseaddr TCP:${HOST_IP}:8080 >> /tmp/socat.log 2>&1 &
+                  echo "$(date): Socat started (PID: $!)" >> /tmp/socat-setup.log
+                ) &
         resources:
           requests:
             memory: "512Mi"
@@ -48,7 +64,7 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "2000m"
-            ephemeral-storage: "10Gi"
+            ephemeral-storage: "1Gi"
         readinessProbe:
           httpGet:
             path: /jupyter/api
