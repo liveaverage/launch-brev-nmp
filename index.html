@@ -1501,11 +1501,13 @@
                     streamOutput.appendChild(line);
                     return;
                 case 'complete':
-                    // On completion, redirect to launcher path (not root)
-                    // After deployment, nginx routes / to Data Store, so go to /interlude
-                    setTimeout(() => {
-                        window.location.href = '/interlude/';
-                    }, 1500);
+                    // On completion during active deployment, redirect to launcher path
+                    // Don't redirect when viewing historical logs!
+                    if (!historyMode) {
+                        setTimeout(() => {
+                            window.location.href = '/interlude/';
+                        }, 1500);
+                    }
                     return;
             }
 
@@ -1634,6 +1636,7 @@
         }
 
         function reconnectToLogs() {
+            console.log('[DEBUG] reconnectToLogs called, showing streamOutput');
             streamOutput.classList.add('show');
             streamOutput.innerHTML = '';
             
@@ -1645,11 +1648,13 @@
                 function processStream() {
                     reader.read().then(({ done, value }) => {
                         if (done) {
+                            console.log('[DEBUG] Stream done, historyMode:', historyMode);
                             // Don't reset button if in history mode
                             if (!historyMode) {
                                 submitBtn.disabled = false;
                                 submitBtn.textContent = '🤙 Let it rip';
                             }
+                            console.log('[DEBUG] Stream finished, streamOutput should remain visible');
                             return;
                         }
 
@@ -1662,6 +1667,7 @@
                                 try {
                                     const data = JSON.parse(line.slice(6));
                                     if (data.type === 'stream_end') {
+                                        console.log('[DEBUG] Received stream_end, status:', data.status);
                                         if (data.status === 'success') {
                                             showMessage('Deployment completed successfully!', 'success');
                                         } else if (data.status === 'failed') {
@@ -1677,6 +1683,7 @@
                         streamOutput.scrollTop = streamOutput.scrollHeight;
                         processStream();
                     }).catch(error => {
+                        console.error('[DEBUG] Stream error:', error);
                         submitBtn.disabled = false;
                         submitBtn.textContent = '🤙 Let it rip';
                     });
@@ -1689,6 +1696,19 @@
         // Initialize
         loadConfig();
         checkDeploymentStatus();
+        
+        // Debug: Watch for streamOutput visibility changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    console.log('[DEBUG] streamOutput class changed:', streamOutput.className);
+                    if (!streamOutput.classList.contains('show')) {
+                        console.trace('[DEBUG] streamOutput hidden! Stack trace:');
+                    }
+                }
+            });
+        });
+        observer.observe(streamOutput, { attributes: true });
     </script>
 </body>
 </html>
