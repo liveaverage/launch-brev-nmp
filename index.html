@@ -1611,6 +1611,11 @@
                     reconnectToLogs();
                 } else if (status.status !== 'idle' && status.log_count > 0) {
                     // Previous deployment exists - offer to view logs
+                    // BUT: don't overwrite if logs are already being viewed
+                    if (streamOutput.classList.contains('show')) {
+                        return; // Logs already expanded, don't interfere
+                    }
+                    
                     const statusText = status.status === 'success' ? '✓ Previous deployment succeeded' :
                                       status.status === 'failed' ? '✗ Previous deployment failed' :
                                       status.status === 'timeout' ? '⏱ Previous deployment timed out' :
@@ -1640,8 +1645,11 @@
                 function processStream() {
                     reader.read().then(({ done, value }) => {
                         if (done) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = '🤙 Let it rip';
+                            // Don't reset button if in history mode
+                            if (!historyMode) {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = '🤙 Let it rip';
+                            }
                             return;
                         }
 
