@@ -87,6 +87,7 @@
       "helm uninstall nemo-microservices --namespace nemo || true",
       "kubectl delete namespace nemo --timeout=60s || true",
       "echo '📓 Uninstalling Jupyter...' && kubectl delete -f k8s/jupyter-deployment.yaml 2>/dev/null || true",
+      "echo '🧹 Force-removing namespace finalizers if stuck...' && kubectl get namespace nemo -o json 2>/dev/null | jq 'del(.spec.finalizers)' | kubectl replace --raw '/api/v1/namespaces/nemo/finalize' -f - 2>/dev/null || true",
       "echo '✓ Uninstall complete'"
     ],
     "log_sources": [
@@ -132,6 +133,7 @@
       "helm uninstall nemo-microservices --namespace nemo || true",
       "kubectl delete namespace nemo --timeout=90s || true",
       "echo '📓 Uninstalling Jupyter...' && kubectl delete -f k8s/jupyter-deployment.yaml 2>/dev/null || true",
+      "echo '🧹 Force-removing namespace finalizers if stuck...' && kubectl get namespace nemo -o json 2>/dev/null | jq 'del(.spec.finalizers)' | kubectl replace --raw '/api/v1/namespaces/nemo/finalize' -f - 2>/dev/null || true",
       "echo '✓ Uninstall complete'"
     ],
     "log_sources": [
