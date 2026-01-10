@@ -229,9 +229,10 @@ cat >> "$NGINX_CONF" << NGINX
             return 302 /interlude;
         }
         
-        # Flask SPA at /interlude (prefix match, handles /interlude and /interlude/*)
+        # Flask SPA at /interlude (strip prefix, Flask serves from /)
         location /interlude {
-            # Don't strip /interlude from path, Flask needs to see it
+            # Strip /interlude prefix: /interlude/foo -> /foo, /interlude -> /
+            rewrite ^/interlude/?(.*)$ /$1 break;
             proxy_pass http://flask_backend;
             proxy_http_version 1.1;
             proxy_set_header Host \$host;
