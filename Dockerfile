@@ -4,7 +4,7 @@ FROM python:3.11-slim
 LABEL org.opencontainers.image.description="Interlude - NeMo Microservices deployment launcher with integrated reverse proxy"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install Docker CLI, Docker Compose, Helm, kubectl, nginx, and openssl
+# Install Docker CLI, Docker Compose, Helm, kubectl, nginx, jq, and openssl
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     openssl \
     procps \
+    jq \
     debian-keyring \
     debian-archive-keyring \
     apt-transport-https \
