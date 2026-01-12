@@ -39,6 +39,7 @@ ENV_FLAGS=""
 # Use host network for K8s API access and ingress routing
 docker run -d \
   --name "$CONTAINER_NAME" \
+  --restart always \
   --network host \
   $ENV_FLAGS \
   -v "$HOME/.kube:/root/.kube:ro" \
