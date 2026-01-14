@@ -52,6 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bo
 
 **What it does:**
 - ✅ Clones the repository
+- ✅ Auto-extends root storage using ephemeral volumes (if available)
 - ✅ Pulls container image (`ghcr.io/liveaverage/launch-brev-nmp:latest`)
 - ✅ Starts the launcher on port 9090
 - ✅ Exposes web UI at `http://localhost:9090`
@@ -86,6 +87,40 @@ INSTALL_DIR=/opt/nemo-launcher curl -fsSL https://raw.githubusercontent.com/live
 | **K3s** with NVIDIA GPU | ✅ Fully supported |
 | **EKS/GKE/AKS** with GPU nodes | ✅ Fully supported |
 | **Kind/Minikube** (local dev) | ⚠️ Limited GPU support |
+
+---
+
+## 💾 Storage Management
+
+The bootstrap script automatically extends root storage when ephemeral volumes are detected (e.g., `/dev/vdb`). 
+
+### Auto-Extension Behavior
+
+When the script detects a mounted ephemeral volume with >50GB free space:
+
+1. **Relocates heavy-use directories** via bind mounts:
+   - `/var/lib/docker` → `/ephemeral/data/var/lib/docker`
+   - `/var/snap/microk8s/common/var/lib/containerd` → ephemeral storage
+
+2. **Preserves existing data**: Uses `rsync` to migrate any existing files before mounting
+
+3. **Idempotent**: Safe to run multiple times (skips already-mounted paths)
+
+### Manual Control
+
+To disable auto-extension, modify `bootstrap.sh` and comment out the `extend_root_storage` call.
+
+### Verification
+
+```bash
+# Check mounted ephemeral storage
+df -h | grep ephemeral
+
+# Verify bind mounts
+findmnt --type bind
+```
+
+> **Note:** Ephemeral volumes may not persist across VM reboots on some cloud providers. Critical persistent data should remain on root volume or use persistent volumes.
 
 ---
 
@@ -230,6 +265,33 @@ kubectl describe nodes | grep -A5 nvidia.com/gpu
 
 # Verify Volcano scheduler
 kubectl get pods -n volcano-system
+```
+
+</details>
+
+<details>
+<summary><strong>💾 Disk Space Issues</strong></summary>
+
+**Symptom:** Deployments fail with "no space left on device"
+
+**Solution:**
+```bash
+# Check disk usage
+df -h
+
+# If ephemeral volume exists but not mounted:
+sudo mkdir -p /ephemeral
+sudo mount /dev/vdb /ephemeral  # adjust device as needed
+
+# Manually trigger storage extension
+cd ~/launch-brev-nmp
+bash bootstrap.sh
+
+# Verify bind mounts
+findmnt --type bind | grep -E "(docker|containerd)"
+
+# Clean up Docker cache
+docker system prune -af --volumes
 ```
 
 </details>
