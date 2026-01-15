@@ -50,9 +50,12 @@
 curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 ```
 
+> **Note:** The script will prompt for sudo password if storage extension is needed (ephemeral volumes detected).
+
 **What it does:**
 - ✅ Clones the repository
 - ✅ Auto-extends root storage using ephemeral volumes (if available)
+- ✅ Logs all output to `/var/log/interlude-bootstrap.log`
 - ✅ Pulls container image (`ghcr.io/liveaverage/launch-brev-nmp:latest`)
 - ✅ Starts the launcher on port 9090
 - ✅ Exposes web UI at `http://localhost:9090`
@@ -63,6 +66,23 @@ curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bo
 ```bash
 INSTALL_DIR=/opt/nemo-launcher curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 ```
+
+</details>
+
+<details>
+<summary><strong>📝 Custom Log Location</strong></summary>
+
+```bash
+# Custom log file location
+LOG_FILE=/tmp/interlude-bootstrap.log curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
+
+# View logs in real-time
+tail -f /var/log/interlude-bootstrap.log
+```
+
+**Default locations:**
+- Primary: `/var/log/interlude-bootstrap.log` (requires sudo)
+- Fallback: `~/.interlude-bootstrap.log` (if /var/log not writable)
 
 </details>
 
@@ -104,7 +124,16 @@ When the script detects a mounted ephemeral volume with >50GB free space:
 
 2. **Preserves existing data**: Uses `rsync` to migrate any existing files before mounting
 
-3. **Idempotent**: Safe to run multiple times (skips already-mounted paths)
+3. **Persists across reboots**: Adds entries to `/etc/fstab` for both the ephemeral volume and bind mounts
+
+4. **Idempotent**: Safe to run multiple times (skips already-mounted paths and existing fstab entries)
+
+### Persistence & Safety
+
+✅ **Persistent**: Bind mounts survive reboots (via `/etc/fstab`)  
+✅ **Safe**: Non-destructive; no partition modifications  
+✅ **Automatic**: Works on first boot and every subsequent reboot  
+⚠️ **Cloud-specific**: Ephemeral volumes may be instance-local (check your cloud provider's docs)
 
 ### Manual Control
 
@@ -116,9 +145,28 @@ To disable auto-extension, modify `bootstrap.sh` and comment out the `extend_roo
 # Check mounted ephemeral storage
 df -h | grep ephemeral
 
-# Verify bind mounts
-findmnt --type bind
+# Verify bind mounts are active
+findmnt --type bind | grep -E "(docker|containerd)"
+
+# Check /etc/fstab entries
+grep -E "(ephemeral|docker|containerd)" /etc/fstab
+
+# Test persistence (simulate reboot)
+sudo mount -a  # remount everything from fstab
 ```
+
+### Important Notes
+
+**Ephemeral Volume Behavior by Cloud Provider:**
+
+| Provider | Ephemeral Volume | Survives Reboot? | Survives Instance Stop? |
+|:---------|:-----------------|:-----------------|:------------------------|
+| **AWS EC2** | Instance store | ✅ Yes | ❌ No (data lost) |
+| **GCP** | Local SSD | ✅ Yes | ❌ No (data lost) |
+| **Azure** | Temp disk | ✅ Yes | ❌ No (data lost) |
+| **Brev/Bare Metal** | Secondary disk | ✅ Yes | ✅ Yes (check config) |
+
+> **Recommendation**: Use ephemeral storage for cache/temp data (Docker layers, containerd cache). For persistent application data, use cloud persistent disks/volumes.
 
 > **Note:** Ephemeral volumes may not persist across VM reboots on some cloud providers. Critical persistent data should remain on root volume or use persistent volumes.
 
@@ -236,6 +284,33 @@ Edit `config.json` to modify deployment behavior:
 ---
 
 ## 🔥 Troubleshooting
+
+<details>
+<summary><strong>📋 View Bootstrap Logs</strong></summary>
+
+**All bootstrap operations are logged for debugging:**
+
+```bash
+# View full bootstrap log
+cat /var/log/interlude-bootstrap.log
+
+# Or fallback location
+cat ~/.interlude-bootstrap.log
+
+# Follow logs in real-time (during bootstrap)
+tail -f /var/log/interlude-bootstrap.log
+
+# View only the latest bootstrap session
+grep -A 9999 "Bootstrap session:" /var/log/interlude-bootstrap.log | tail -n +1
+```
+
+**Log includes:**
+- Storage extension operations
+- Container pulls and starts
+- Mount operations and fstab entries
+- Error messages with timestamps
+
+</details>
 
 <details>
 <summary><strong>❌ Helm Install Fails</strong></summary>
