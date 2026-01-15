@@ -46,11 +46,17 @@
 
 ### One-Line Bootstrap (Recommended)
 
+**Non-interactive (for automation/scripts):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | sudo -E bash
+```
+
+**Interactive (prompts for password if needed):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
 ```
 
-> **Note:** The script will prompt for sudo password if storage extension is needed (ephemeral volumes detected).
+> **Note:** Storage extension requires sudo. Use `sudo -E bash` for non-interactive deployments.
 
 **What it does:**
 - ✅ Clones the repository

@@ -1,7 +1,13 @@
 #!/bin/bash
 # Bootstrap script for Interlude (NeMo Microservices Launcher)
-# Usage: curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
-# Note: Sudo access required for storage extension (will prompt if needed)
+# 
+# Usage (non-interactive):
+#   curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | sudo -E bash
+# 
+# Usage (interactive):
+#   curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | bash
+#
+# Note: Storage extension requires sudo. Script will skip if not available.
 set -e
 
 REPO_URL="https://github.com/liveaverage/launch-brev-nmp.git"
@@ -10,6 +16,15 @@ INSTALL_DIR="${INSTALL_DIR:-$HOME/launch-brev-nmp}"
 CONTAINER_NAME="interlude"
 OLD_CONTAINER_NAME="brev-launch-nmp"  # For cleanup of legacy containers
 LOG_FILE="${LOG_FILE:-/var/log/interlude-bootstrap.log}"
+
+# Detect if running as root and preserve original user
+ORIGINAL_USER="${SUDO_USER:-$USER}"
+ORIGINAL_HOME=$(getent passwd "$ORIGINAL_USER" | cut -d: -f6)
+
+# If INSTALL_DIR uses $HOME and we're root, use original user's home
+if [ "$EUID" -eq 0 ] && [ "$INSTALL_DIR" = "$HOME/launch-brev-nmp" ]; then
+    INSTALL_DIR="$ORIGINAL_HOME/launch-brev-nmp"
+fi
 
 # Setup logging: tee to both console and log file
 setup_logging() {
@@ -49,29 +64,42 @@ echo "  Interlude - NeMo Microservices Launcher"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-# Early sudo check if storage extension will be needed
+# Early sudo check if storage extension will be needed (non-interactive)
 # This must happen BEFORE extend_root_storage is called
-if mountpoint -q "/ephemeral" 2>/dev/null; then
-    # Check if we have directories that would need mounting
-    if [ -d "/var/lib/docker" ] || [ -d "/var/snap/microk8s/common/var/lib/containerd" ]; then
-        # Check if not already mounted
-        if ! mountpoint -q "/var/lib/docker" 2>/dev/null || ! mountpoint -q "/var/snap/microk8s/common/var/lib/containerd" 2>/dev/null; then
-            # Test if we have sudo without prompting
-            if ! sudo -n true 2>/dev/null; then
-                echo "🔐 Storage extension requires sudo privileges."
-                echo "   You may be prompted for your password..."
-                sudo -v || {
-                    echo "⚠️  Warning: sudo access required for storage extension"
-                    echo "   Continuing without storage extension..."
-                }
+check_sudo_for_storage() {
+    if mountpoint -q "/ephemeral" 2>/dev/null; then
+        # Check if we have directories that would need mounting
+        if [ -d "/var/lib/docker" ] || [ -d "/var/snap/microk8s/common/var/lib/containerd" ]; then
+            # Check if not already mounted
+            if ! mountpoint -q "/var/lib/docker" 2>/dev/null || ! mountpoint -q "/var/snap/microk8s/common/var/lib/containerd" 2>/dev/null; then
+                # Check if we can run sudo commands
+                if [ "$EUID" -eq 0 ]; then
+                    # Already running as root, good to go
+                    return 0
+                elif sudo -n true 2>/dev/null; then
+                    # Have passwordless sudo, good to go
+                    return 0
+                else
+                    # No sudo access, skip storage extension
+                    echo "⚠️  Storage extension requires sudo (skipping)"
+                    return 1
+                fi
             fi
         fi
     fi
-fi
+    return 0
+}
+
+check_sudo_for_storage || SKIP_STORAGE_EXTENSION=true
 
 # Extend root storage with ephemeral volumes
 # Relocates heavy-use directories to ephemeral storage via bind mounts
 extend_root_storage() {
+    # Skip if explicitly disabled
+    if [ "$SKIP_STORAGE_EXTENSION" = "true" ]; then
+        return 0
+    fi
+    
     local EPHEMERAL_BASE="/ephemeral"
     local EPHEMERAL_DATA="${EPHEMERAL_BASE}/data"
     
@@ -93,7 +121,11 @@ extend_root_storage() {
     if [ -n "$EPHEMERAL_DEVICE" ] && [ "$EPHEMERAL_DEVICE" != "tmpfs" ]; then
         if ! grep -qF "$EPHEMERAL_DEVICE" /etc/fstab 2>/dev/null; then
             echo "   📝 Making ephemeral volume persistent in /etc/fstab"
-            echo "$EPHEMERAL_DEVICE $EPHEMERAL_BASE auto defaults,nofail 0 2" | sudo tee -a /etc/fstab >/dev/null
+            if [ "$EUID" -eq 0 ]; then
+                echo "$EPHEMERAL_DEVICE $EPHEMERAL_BASE auto defaults,nofail 0 2" >> /etc/fstab
+            else
+                echo "$EPHEMERAL_DEVICE $EPHEMERAL_BASE auto defaults,nofail 0 2" | sudo tee -a /etc/fstab >/dev/null
+            fi
         fi
     fi
     
@@ -118,30 +150,59 @@ extend_root_storage() {
         fi
         
         # Create target directory
-        sudo mkdir -p "$TARGET_DIR"
+        if [ "$EUID" -eq 0 ]; then
+            mkdir -p "$TARGET_DIR"
+        else
+            sudo mkdir -p "$TARGET_DIR"
+        fi
         
         # Move existing data if any
         if [ -d "$SOURCE_DIR" ] && [ "$(ls -A $SOURCE_DIR 2>/dev/null)" ]; then
             echo "   📦 Migrating: $SOURCE_DIR → $TARGET_DIR"
-            sudo rsync -a "$SOURCE_DIR/" "$TARGET_DIR/" 2>/dev/null || sudo cp -a "$SOURCE_DIR"/* "$TARGET_DIR/" 2>/dev/null || true
-            sudo rm -rf "${SOURCE_DIR:?}"/*  # Clear original (keep dir)
+            if [ "$EUID" -eq 0 ]; then
+                rsync -a "$SOURCE_DIR/" "$TARGET_DIR/" 2>/dev/null || cp -a "$SOURCE_DIR"/* "$TARGET_DIR/" 2>/dev/null || true
+                rm -rf "${SOURCE_DIR:?}"/*  # Clear original (keep dir)
+            else
+                sudo rsync -a "$SOURCE_DIR/" "$TARGET_DIR/" 2>/dev/null || sudo cp -a "$SOURCE_DIR"/* "$TARGET_DIR/" 2>/dev/null || true
+                sudo rm -rf "${SOURCE_DIR:?}"/*  # Clear original (keep dir)
+            fi
         fi
         
         # Ensure source directory exists
-        sudo mkdir -p "$SOURCE_DIR"
+        if [ "$EUID" -eq 0 ]; then
+            mkdir -p "$SOURCE_DIR"
+        else
+            sudo mkdir -p "$SOURCE_DIR"
+        fi
         
         # Bind mount
-        if sudo mount --bind "$TARGET_DIR" "$SOURCE_DIR"; then
-            echo "   ✓ Mounted: $SOURCE_DIR → $TARGET_DIR"
-            
-            # Make persistent across reboots via /etc/fstab
-            local FSTAB_ENTRY="$TARGET_DIR $SOURCE_DIR none bind 0 0"
-            if ! grep -qF "$SOURCE_DIR" /etc/fstab 2>/dev/null; then
-                echo "   📝 Adding to /etc/fstab for persistence"
-                echo "$FSTAB_ENTRY" | sudo tee -a /etc/fstab >/dev/null
+        local MOUNT_CMD="mount --bind \"$TARGET_DIR\" \"$SOURCE_DIR\""
+        if [ "$EUID" -eq 0 ]; then
+            if mount --bind "$TARGET_DIR" "$SOURCE_DIR"; then
+                echo "   ✓ Mounted: $SOURCE_DIR → $TARGET_DIR"
+                
+                # Make persistent across reboots via /etc/fstab
+                local FSTAB_ENTRY="$TARGET_DIR $SOURCE_DIR none bind 0 0"
+                if ! grep -qF "$SOURCE_DIR" /etc/fstab 2>/dev/null; then
+                    echo "   📝 Adding to /etc/fstab for persistence"
+                    echo "$FSTAB_ENTRY" >> /etc/fstab
+                fi
+            else
+                echo "   ⚠️  Failed to mount: $SOURCE_DIR"
             fi
         else
-            echo "   ⚠️  Failed to mount: $SOURCE_DIR"
+            if sudo mount --bind "$TARGET_DIR" "$SOURCE_DIR"; then
+                echo "   ✓ Mounted: $SOURCE_DIR → $TARGET_DIR"
+                
+                # Make persistent across reboots via /etc/fstab
+                local FSTAB_ENTRY="$TARGET_DIR $SOURCE_DIR none bind 0 0"
+                if ! grep -qF "$SOURCE_DIR" /etc/fstab 2>/dev/null; then
+                    echo "   📝 Adding to /etc/fstab for persistence"
+                    echo "$FSTAB_ENTRY" | sudo tee -a /etc/fstab >/dev/null
+                fi
+            else
+                echo "   ⚠️  Failed to mount: $SOURCE_DIR"
+            fi
         fi
     done
     
@@ -183,6 +244,12 @@ else
             tar -xz --strip-components=1 -C "$INSTALL_DIR"
     fi
     cd "$INSTALL_DIR"
+    
+    # Fix ownership if running as root via sudo
+    if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+        echo "   📝 Fixing ownership for $SUDO_USER..."
+        chown -R "$SUDO_USER:$SUDO_USER" "$INSTALL_DIR"
+    fi
 fi
 
 echo ""
