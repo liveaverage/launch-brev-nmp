@@ -76,11 +76,23 @@ if kubectl cluster-info --request-timeout=10s; then
     echo "Cluster is now healthy and using ephemeral storage."
     echo ""
     
-    # Restart interlude container if running (to pick up new kubeconfig)
-    if docker ps --format '{{.Names}}' | grep -q "^interlude$"; then
-        echo "🔄 Restarting interlude container to refresh kubeconfig..."
-        docker restart interlude
-        echo "   ✅ Container restarted"
+    # Recreate interlude container if running (to pick up new kubeconfig)
+    if docker ps -a --format '{{.Names}}' | grep -q "^interlude$"; then
+        echo "🔄 Recreating interlude container to refresh kubeconfig mount..."
+        INSTALL_DIR=$(docker inspect interlude --format '{{range .Mounts}}{{if eq .Destination "/app/config.json"}}{{.Source}}{{end}}{{end}}' | xargs dirname)
+        IMAGE=$(docker inspect interlude --format '{{.Config.Image}}')
+        
+        docker rm -f interlude >/dev/null 2>&1
+        
+        # Recreate using run-container.sh if available
+        if [ -f "$INSTALL_DIR/run-container.sh" ]; then
+            cd "$INSTALL_DIR"
+            bash run-container.sh "$IMAGE"
+            echo "   ✅ Container recreated"
+        else
+            echo "   ⚠️  Could not find run-container.sh"
+            echo "      Manually restart: cd ~/launch-brev-nmp && bash run-container.sh"
+        fi
         echo ""
     fi
     

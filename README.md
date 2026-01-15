@@ -363,16 +363,20 @@ kubectl get pods -n volcano-system
 
 **Symptom:** `kubectl cluster-info` returns "the server could not find the requested resource" after storage migration
 
-**Cause:** MicroK8s restarted but the interlude container has stale kubeconfig
+**Cause:** MicroK8s restarted but the interlude container has stale kubeconfig (volume mount not refreshed)
 
 **Quick Fix:**
 ```bash
-# Restart the container to pick up new kubeconfig
-docker restart interlude
+# Recreate container to remount fresh kubeconfig
+docker rm -f interlude
+cd ~/launch-brev-nmp
+bash run-container.sh
 
 # Verify it works
 docker logs -f interlude
 ```
+
+**Note:** `docker restart` is NOT sufficient - you must remove and recreate the container to remount volumes.
 
 **Full Recovery (if needed):**
 ```bash
@@ -384,7 +388,8 @@ sudo microk8s stop
 sleep 5
 sudo microk8s start
 sudo microk8s status --wait-ready
-docker restart interlude
+docker rm -f interlude
+cd ~/launch-brev-nmp && bash run-container.sh
 ```
 
 </details>

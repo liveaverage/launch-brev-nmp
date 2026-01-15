@@ -330,12 +330,13 @@ recover_microk8s_if_needed() {
         fi
     fi
     
-    # If recovery was performed, restart any running interlude container to pick up new kubeconfig
+    # If recovery was performed, recreate any running interlude container to pick up new kubeconfig
     if [ "$RECOVERY_PERFORMED" = "true" ]; then
-        if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" 2>/dev/null; then
-            echo "   🔄 Restarting interlude container to refresh kubeconfig..."
-            docker restart "$CONTAINER_NAME" >/dev/null 2>&1 || true
-            echo "   ✅ Container restarted"
+        if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" 2>/dev/null; then
+            echo "   🔄 Recreating interlude container to refresh kubeconfig mount..."
+            docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+            # Note: Container will be recreated later in bootstrap if this is during initial setup
+            echo "   ✅ Container will be recreated with fresh kubeconfig"
         fi
     fi
 }
@@ -393,6 +394,19 @@ echo ""
 
 # Run the container
 bash run-container.sh "$IMAGE"
+
+# Give it a moment to start and stabilize
+sleep 3
+
+# Always recreate container to ensure fresh kubeconfig mount
+# Note: docker restart doesn't remount volumes, so we need full rm + run
+# This catches any changes from storage migration, MicroK8s restarts, etc.
+if docker ps -a -q -f name="^${CONTAINER_NAME}$" >/dev/null 2>&1; then
+    echo "🔄 Recreating container to ensure fresh kubeconfig mount..."
+    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1
+    bash run-container.sh "$IMAGE"
+    echo "   ✅ Container recreated with latest configuration"
+fi
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
