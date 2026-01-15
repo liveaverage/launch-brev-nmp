@@ -15,21 +15,35 @@ set -e
 IMAGE="${1:-ghcr.io/liveaverage/launch-brev-nmp:latest}"
 CONTAINER_NAME="interlude"
 CONFIG_DIR="$(cd "$(dirname "$0")" && pwd)"
-DATA_DIR="$CONFIG_DIR/.interlude-data"
 
 # Detect if running via sudo and use original user's home
 if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
     REAL_USER="$SUDO_USER"
     REAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    # Use original user's directory for state (not root's)
+    DATA_DIR="$REAL_HOME/launch-brev-nmp/.interlude-data"
 else
     REAL_USER="$USER"
     REAL_HOME="$HOME"
+    DATA_DIR="$CONFIG_DIR/.interlude-data"
 fi
 
 KUBE_CONFIG_DIR="$REAL_HOME/.kube"
 
 # Create data directory for persistent state
 mkdir -p "$DATA_DIR"
+
+# If running as root and data exists in root's directory, migrate it to user's directory
+if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+    ROOT_DATA_DIR="$CONFIG_DIR/.interlude-data"
+    if [ -d "$ROOT_DATA_DIR" ] && [ "$ROOT_DATA_DIR" != "$DATA_DIR" ]; then
+        # Copy state from root's directory to user's directory
+        cp -a "$ROOT_DATA_DIR"/* "$DATA_DIR"/ 2>/dev/null || true
+        echo "   📝 Migrated state from root to $REAL_USER's directory"
+    fi
+    # Fix ownership
+    chown -R "$SUDO_USER:$SUDO_USER" "$DATA_DIR"
+fi
 
 # Clear any existing kubectl cache to ensure fresh start
 rm -rf "$KUBE_CONFIG_DIR/cache" 2>/dev/null || true
