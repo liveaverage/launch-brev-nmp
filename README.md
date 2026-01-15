@@ -124,15 +124,23 @@ The bootstrap script automatically extends root storage when ephemeral volumes a
 
 When the script detects a mounted ephemeral volume with >50GB free space:
 
-1. **Relocates heavy-use directories** via bind mounts:
+1. **Stops running services** (if needed):
+   - Docker daemon (if `/var/lib/docker` needs migration)
+   - MicroK8s (if containerd storage needs migration)
+
+2. **Relocates heavy-use directories** via bind mounts:
    - `/var/lib/docker` → `/ephemeral/data/var/lib/docker`
    - `/var/snap/microk8s/common/var/lib/containerd` → ephemeral storage
 
-2. **Preserves existing data**: Uses `rsync` to migrate any existing files before mounting
+3. **Preserves existing data**: Uses `rsync` to migrate any existing files before mounting
 
-3. **Persists across reboots**: Adds entries to `/etc/fstab` for both the ephemeral volume and bind mounts
+4. **Restarts services**: Brings Docker/MicroK8s back up with new storage location
 
-4. **Idempotent**: Safe to run multiple times (skips already-mounted paths and existing fstab entries)
+5. **Persists across reboots**: Adds entries to `/etc/fstab` for both the ephemeral volume and bind mounts
+
+6. **Idempotent**: Safe to run multiple times (skips already-mounted paths and existing fstab entries)
+
+> **Important:** If MicroK8s is running, expect a brief (~30-60s) service interruption during storage migration.
 
 ### Persistence & Safety
 
@@ -346,6 +354,37 @@ kubectl describe nodes | grep -A5 nvidia.com/gpu
 
 # Verify Volcano scheduler
 kubectl get pods -n volcano-system
+```
+
+</details>
+
+<details>
+<summary><strong>❌ MicroK8s Broken After Storage Migration</strong></summary>
+
+**Symptom:** `kubectl cluster-info` returns "the server could not find the requested resource" after storage migration
+
+**Cause:** MicroK8s restarted but the interlude container has stale kubeconfig
+
+**Quick Fix:**
+```bash
+# Restart the container to pick up new kubeconfig
+docker restart interlude
+
+# Verify it works
+docker logs -f interlude
+```
+
+**Full Recovery (if needed):**
+```bash
+# Run the automated recovery script
+bash ~/launch-brev-nmp/scripts/recover-microk8s-storage.sh
+
+# Or manual steps:
+sudo microk8s stop
+sleep 5
+sudo microk8s start
+sudo microk8s status --wait-ready
+docker restart interlude
 ```
 
 </details>

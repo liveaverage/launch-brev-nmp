@@ -135,6 +135,52 @@ extend_root_storage() {
         "/var/snap/microk8s/common/var/lib/containerd"
     )
     
+    # Check if services need to be stopped before mounting
+    local NEED_DOCKER_RESTART=false
+    local NEED_MICROK8S_RESTART=false
+    
+    for SOURCE_DIR in "${RELOCATE_DIRS[@]}"; do
+        # Skip if source doesn't exist yet
+        if [ ! -e "$SOURCE_DIR" ]; then
+            continue
+        fi
+        
+        # Skip if already bind mounted
+        if mountpoint -q "$SOURCE_DIR" 2>/dev/null; then
+            continue
+        fi
+        
+        # Check if we need to stop services for this directory
+        if [[ "$SOURCE_DIR" == "/var/lib/docker" ]] && systemctl is-active --quiet docker 2>/dev/null; then
+            NEED_DOCKER_RESTART=true
+        fi
+        
+        if [[ "$SOURCE_DIR" == *"microk8s"* ]] && snap services microk8s 2>/dev/null | grep -q "active"; then
+            NEED_MICROK8S_RESTART=true
+        fi
+    done
+    
+    # Stop services if needed
+    if [ "$NEED_DOCKER_RESTART" = "true" ]; then
+        echo "   ⏸️  Stopping Docker for storage migration..."
+        if [ "$EUID" -eq 0 ]; then
+            systemctl stop docker
+        else
+            sudo systemctl stop docker
+        fi
+    fi
+    
+    if [ "$NEED_MICROK8S_RESTART" = "true" ]; then
+        echo "   ⏸️  Stopping MicroK8s for storage migration..."
+        if [ "$EUID" -eq 0 ]; then
+            microk8s stop
+        else
+            sudo microk8s stop
+        fi
+        # Give it a moment to fully stop
+        sleep 5
+    fi
+    
     for SOURCE_DIR in "${RELOCATE_DIRS[@]}"; do
         # Skip if source doesn't exist yet
         if [ ! -e "$SOURCE_DIR" ]; then
@@ -206,10 +252,95 @@ extend_root_storage() {
         fi
     done
     
+    # Restart services if they were stopped
+    if [ "$NEED_MICROK8S_RESTART" = "true" ]; then
+        echo "   ▶️  Starting MicroK8s with new storage location..."
+        if [ "$EUID" -eq 0 ]; then
+            microk8s start
+        else
+            sudo microk8s start
+        fi
+        echo "   ⏳ Waiting for MicroK8s to be ready..."
+        if [ "$EUID" -eq 0 ]; then
+            microk8s status --wait-ready --timeout 60 2>/dev/null || echo "   ⚠️  MicroK8s startup timeout (may need manual check)"
+        else
+            sudo microk8s status --wait-ready --timeout 60 2>/dev/null || echo "   ⚠️  MicroK8s startup timeout (may need manual check)"
+        fi
+    fi
+    
+    if [ "$NEED_DOCKER_RESTART" = "true" ]; then
+        echo "   ▶️  Starting Docker with new storage location..."
+        if [ "$EUID" -eq 0 ]; then
+            systemctl start docker
+        else
+            sudo systemctl start docker
+        fi
+    fi
+    
     echo ""
 }
 
 extend_root_storage
+
+# Recovery check: If MicroK8s is running but broken due to storage migration, restart it
+recover_microk8s_if_needed() {
+    # Only check if MicroK8s is installed
+    if ! command -v microk8s &> /dev/null; then
+        return 0
+    fi
+    
+    # Check if containerd storage is bind mounted
+    if ! mountpoint -q "/var/snap/microk8s/common/var/lib/containerd" 2>/dev/null; then
+        return 0  # Not bind mounted, no recovery needed
+    fi
+    
+    local RECOVERY_PERFORMED=false
+    
+    # Check if MicroK8s appears to be running but cluster is broken
+    if snap services microk8s 2>/dev/null | grep -q "active"; then
+        echo "🔍 Checking MicroK8s cluster health..."
+        if ! kubectl cluster-info --request-timeout=5s &>/dev/null; then
+            echo "⚠️  MicroK8s cluster appears broken (likely due to storage migration)"
+            echo "   🔄 Attempting automatic recovery..."
+            
+            if [ "$EUID" -eq 0 ]; then
+                microk8s stop
+                sleep 5
+                microk8s start
+                echo "   ⏳ Waiting for MicroK8s to be ready..."
+                microk8s status --wait-ready --timeout 120 2>/dev/null || echo "   ⚠️  Recovery timeout (may need manual intervention)"
+            else
+                sudo microk8s stop
+                sleep 5
+                sudo microk8s start
+                echo "   ⏳ Waiting for MicroK8s to be ready..."
+                sudo microk8s status --wait-ready --timeout 120 2>/dev/null || echo "   ⚠️  Recovery timeout (may need manual intervention)"
+            fi
+            
+            # Verify recovery
+            if kubectl cluster-info --request-timeout=10s &>/dev/null; then
+                echo "   ✅ MicroK8s cluster recovered successfully!"
+                RECOVERY_PERFORMED=true
+            else
+                echo "   ⚠️  Cluster still unhealthy. Manual recovery may be needed:"
+                echo "      sudo microk8s stop && sleep 5 && sudo microk8s start"
+            fi
+        else
+            echo "   ✅ MicroK8s cluster is healthy"
+        fi
+    fi
+    
+    # If recovery was performed, restart any running interlude container to pick up new kubeconfig
+    if [ "$RECOVERY_PERFORMED" = "true" ]; then
+        if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" 2>/dev/null; then
+            echo "   🔄 Restarting interlude container to refresh kubeconfig..."
+            docker restart "$CONTAINER_NAME" >/dev/null 2>&1 || true
+            echo "   ✅ Container restarted"
+        fi
+    fi
+}
+
+recover_microk8s_if_needed
 
 # Check for required tools
 if ! command -v docker &> /dev/null; then
