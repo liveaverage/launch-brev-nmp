@@ -359,38 +359,27 @@ kubectl get pods -n volcano-system
 </details>
 
 <details>
-<summary><strong>❌ MicroK8s Broken After Storage Migration</strong></summary>
+<summary><strong>❌ Kubectl Connection Issues</strong></summary>
 
-**Symptom:** `kubectl cluster-info` returns "the server could not find the requested resource" after storage migration
+**Symptom:** `kubectl cluster-info` returns errors like "couldn't get current server API group list" or "the server could not find the requested resource"
 
-**Cause:** MicroK8s restarted but the interlude container has stale kubeconfig (volume mount not refreshed)
+**Root Causes:**
+1. Kubectl cache is stale after MicroK8s restart
+2. Kubeconfig not properly mounted in container
+3. Running with sudo mounts wrong home directory
 
-**Quick Fix:**
+**Fix:**
 ```bash
-# Recreate container to remount fresh kubeconfig
-docker rm -f interlude
-cd ~/launch-brev-nmp
-bash run-container.sh
-
-# Verify it works
-docker logs -f interlude
+# Just re-run bootstrap - it handles everything
+curl -fsSL https://raw.githubusercontent.com/liveaverage/launch-brev-nmp/main/bootstrap.sh | sudo -E bash
 ```
 
-**Note:** `docker restart` is NOT sufficient - you must remove and recreate the container to remount volumes.
-
-**Full Recovery (if needed):**
-```bash
-# Run the automated recovery script
-bash ~/launch-brev-nmp/scripts/recover-microk8s-storage.sh
-
-# Or manual steps:
-sudo microk8s stop
-sleep 5
-sudo microk8s start
-sudo microk8s status --wait-ready
-docker rm -f interlude
-cd ~/launch-brev-nmp && bash run-container.sh
-```
+**Why This Works:**
+- Detects correct user home directory (even with sudo)
+- Generates kubeconfig if missing
+- Clears kubectl caches
+- Recreates container with correct mounts
+- Verifies connectivity
 
 </details>
 

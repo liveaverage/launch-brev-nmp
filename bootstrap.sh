@@ -320,6 +320,8 @@ recover_microk8s_if_needed() {
             # Verify recovery
             if kubectl cluster-info --request-timeout=10s &>/dev/null; then
                 echo "   ✅ MicroK8s cluster recovered successfully!"
+                # Clear kubectl cache to ensure fresh connections
+                rm -rf ~/.kube/cache ~/.kube/http-cache 2>/dev/null || true
                 RECOVERY_PERFORMED=true
             else
                 echo "   ⚠️  Cluster still unhealthy. Manual recovery may be needed:"
@@ -342,6 +344,34 @@ recover_microk8s_if_needed() {
 }
 
 recover_microk8s_if_needed
+
+# Ensure kubeconfig exists for container mount
+ensure_kubeconfig() {
+    local KUBE_CONFIG_FILE="$ORIGINAL_HOME/.kube/config"
+    
+    if [ ! -f "$KUBE_CONFIG_FILE" ]; then
+        echo "📝 Generating kubeconfig for $ORIGINAL_USER..."
+        mkdir -p "$ORIGINAL_HOME/.kube"
+        
+        if command -v microk8s &> /dev/null; then
+            if [ "$EUID" -eq 0 ]; then
+                microk8s config > "$KUBE_CONFIG_FILE"
+                chown "$ORIGINAL_USER:$ORIGINAL_USER" "$KUBE_CONFIG_FILE"
+                chmod 600 "$KUBE_CONFIG_FILE"
+            else
+                sudo microk8s config > "$KUBE_CONFIG_FILE"
+            fi
+            
+            echo "   ✓ Kubeconfig generated at $KUBE_CONFIG_FILE"
+        else
+            echo "   ⚠️  MicroK8s not found, skipping kubeconfig generation"
+        fi
+    else
+        echo "✓ Kubeconfig exists at $KUBE_CONFIG_FILE"
+    fi
+}
+
+ensure_kubeconfig
 
 # Check for required tools
 if ! command -v docker &> /dev/null; then

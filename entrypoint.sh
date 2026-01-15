@@ -11,6 +11,10 @@ STATE_FILE="${STATE_FILE:-/app/data/deployment.state}"
 HTTP_PORT="${HTTP_PORT:-9090}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
+# Clear kubectl cache on startup to ensure fresh config read
+echo "🧹 Clearing kubectl cache..."
+rm -rf /root/.kube/cache /root/.kube/http-cache 2>/dev/null || true
+
 # Stop any existing nginx (from package install)
 pkill nginx 2>/dev/null || true
 sleep 0.5
