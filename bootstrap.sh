@@ -11,7 +11,7 @@
 set -e
 
 REPO_URL="https://github.com/liveaverage/launch-brev-nmp.git"
-IMAGE="ghcr.io/liveaverage/launch-brev-nmp:latest"
+IMAGE="ghcr.io/liveaverage/pyrrhus-jupyter:slim-latest"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/launch-brev-nmp}"
 CONTAINER_NAME="interlude"
 OLD_CONTAINER_NAME="brev-launch-nmp"  # For cleanup of legacy containers
